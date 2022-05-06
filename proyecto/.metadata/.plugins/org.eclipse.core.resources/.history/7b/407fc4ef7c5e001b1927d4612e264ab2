@@ -1,0 +1,12 @@
+/*
+ * draw.h
+ *
+ *  Created on: 24/01/2021
+ *      Author: VUser
+ */
+
+
+
+void ldc_draw_circle(uint16 radius);
+
+void lcd_putint( uint16 x, uint16 y, uint8 color, int32 i )

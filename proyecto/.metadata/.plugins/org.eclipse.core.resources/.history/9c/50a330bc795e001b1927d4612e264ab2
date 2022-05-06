@@ -1,0 +1,12 @@
+/*
+ * draw.h
+ *
+ *  Created on: 24/01/2021
+ *      Author: VUser
+ */
+
+uint16 x_center=160;
+uint16 y_center=120;
+
+void lcd_draw_cricle(uint16 radius);
+

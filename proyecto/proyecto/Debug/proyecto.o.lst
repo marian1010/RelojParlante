@@ -1,0 +1,2145 @@
+   1              		.cpu arm7tdmi
+   2              		.fpu softvfp
+   3              		.eabi_attribute 20, 1
+   4              		.eabi_attribute 21, 1
+   5              		.eabi_attribute 23, 3
+   6              		.eabi_attribute 24, 1
+   7              		.eabi_attribute 25, 1
+   8              		.eabi_attribute 26, 1
+   9              		.eabi_attribute 30, 6
+  10              		.eabi_attribute 18, 4
+  11              		.file	"proyecto.c"
+  21              	.Ltext0:
+  22              		.file 1 "../proyecto.c"
+ 2222              	scancode:
+ 2223 0000 FF       		.byte	-1
+ 2224              		.global	Alarm
+ 2225              		.bss
+ 2228              	Alarm:
+ 2229 0000 00       		.space	1
+ 2230              		.global	PbLeft
+ 2233              	PbLeft:
+ 2234 0001 00       		.space	1
+ 2235              		.global	PbRight
+ 2238              	PbRight:
+ 2239 0002 00       		.space	1
+ 2240              		.global	flaglcd
+ 2241              		.data
+ 2244              	flaglcd:
+ 2245 0001 01       		.byte	1
+ 2246              		.global	flagTask5
+ 2247              		.bss
+ 2250              	flagTask5:
+ 2251 0003 00       		.space	1
+ 2252              		.global	pb_pressed
+ 2255              	pb_pressed:
+ 2256 0004 00       		.space	1
+ 2257              		.text
+ 2258              		.align	2
+ 2259              		.global	main
+ 2261              	main:
+ 2262              	.LFB0:
+   1:../proyecto.c **** 
+   2:../proyecto.c **** #include "kernelcoop.h"
+   3:../proyecto.c **** 
+   4:../proyecto.c **** #include <common_types.h>
+   5:../proyecto.c **** #include <system.h>
+   6:../proyecto.c **** #include <uart.h>
+   7:../proyecto.c **** #include <uda1341ts.h>
+   8:../proyecto.c **** #include <s3cev40.h>
+   9:../proyecto.c **** #include <s3c44b0x.h>
+  10:../proyecto.c **** #include <Keypad.h>
+  11:../proyecto.c **** #include <timers.h>
+  12:../proyecto.c **** #include <rtc.h>
+  13:../proyecto.c **** #include <pbs.h>
+  14:../proyecto.c **** #include <lcd.h>
+  15:../proyecto.c **** #include <iis.h>
+  16:../proyecto.c **** #include "sintesisVoz.h"
+  17:../proyecto.c **** #include "draw.h"
+  18:../proyecto.c **** 
+  19:../proyecto.c **** #define INIT    (0)
+  20:../proyecto.c **** #define RUN        (1)
+  21:../proyecto.c **** 
+  22:../proyecto.c **** #define WAIT_KEYDOWN (1)
+  23:../proyecto.c **** #define SCAN         (2)
+  24:../proyecto.c **** #define WAIT_KEYUP   (3)
+  25:../proyecto.c **** #define END_SCAN     (4)
+  26:../proyecto.c **** 
+  27:../proyecto.c **** /* Declaración de recursos */
+  28:../proyecto.c **** uint8 Alarmmin;
+  29:../proyecto.c **** uint8 Alarmhour;
+  30:../proyecto.c **** uint8 PbScancode;
+  31:../proyecto.c **** uint8 scancode 	   = KEYPAD_FAILURE ;
+  32:../proyecto.c **** boolean Alarm      = FALSE;
+  33:../proyecto.c **** boolean PbLeft	   = FALSE;
+  34:../proyecto.c **** boolean PbRight    = FALSE;
+  35:../proyecto.c **** boolean flaglcd    = TRUE;
+  36:../proyecto.c **** boolean flagTask5  = FALSE;
+  37:../proyecto.c **** 
+  38:../proyecto.c **** 
+  39:../proyecto.c **** volatile boolean pb_pressed = FALSE;
+  40:../proyecto.c **** 
+  41:../proyecto.c **** /* Declaración de tareas */
+  42:../proyecto.c **** 
+  43:../proyecto.c **** void Task1( uint32 *state, uint32 *period );
+  44:../proyecto.c **** void Task2( uint32 *state, uint32 *period );
+  45:../proyecto.c **** void Task3( uint32 *state, uint32 *period );
+  46:../proyecto.c **** void Task4( uint32 *state, uint32 *period );
+  47:../proyecto.c **** void Task5( uint32 *state, uint32 *period );
+  48:../proyecto.c **** void Task6( uint32 *state, uint32 *period );
+  49:../proyecto.c **** 
+  50:../proyecto.c **** /* Declaración de RTI */
+  51:../proyecto.c **** 
+  52:../proyecto.c **** void isr_pb( void ) __attribute__ ((interrupt ("IRQ")));
+  53:../proyecto.c **** void isr_keypad( void ) __attribute__ ((interrupt ("IRQ")));
+  54:../proyecto.c **** 
+  55:../proyecto.c **** 
+  56:../proyecto.c **** void main( void )
+  57:../proyecto.c **** {
+ 2263              		.loc 1 57 0
+ 2264              		.cfi_startproc
+ 2265              		@ Function supports interworking.
+ 2266              		@ args = 0, pretend = 0, frame = 0
+ 2267              		@ frame_needed = 1, uses_anonymous_args = 0
+ 2268 0000 0DC0A0E1 		mov	ip, sp
+ 2269              	.LCFI0:
+ 2270              		.cfi_def_cfa_register 12
+ 2271 0004 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 2272 0008 04B04CE2 		sub	fp, ip, #4
+ 2273              		.cfi_offset 14, -8
+ 2274              		.cfi_offset 13, -12
+ 2275              		.cfi_offset 11, -16
+ 2276              	.LCFI1:
+ 2277              		.cfi_def_cfa 11, 4
+  58:../proyecto.c **** 	      /* Inicializa el sistema */
+  59:../proyecto.c **** 	timers_init();
+ 2278              		.loc 1 59 0
+ 2279 000c FEFFFFEB 		bl	timers_init
+  60:../proyecto.c **** 	leds_init();
+ 2280              		.loc 1 60 0
+ 2281 0010 FEFFFFEB 		bl	leds_init
+  61:../proyecto.c **** 	segs_init();
+ 2282              		.loc 1 61 0
+ 2283 0014 FEFFFFEB 		bl	segs_init
+  62:../proyecto.c **** 	rtc_init();
+ 2284              		.loc 1 62 0
+ 2285 0018 FEFFFFEB 		bl	rtc_init
+  63:../proyecto.c **** 	pbs_init();
+ 2286              		.loc 1 63 0
+ 2287 001c FEFFFFEB 		bl	pbs_init
+  64:../proyecto.c **** 	keypad_init();
+ 2288              		.loc 1 64 0
+ 2289 0020 FEFFFFEB 		bl	keypad_init
+  65:../proyecto.c **** 	sys_init();										 /* Inicializa sistemas y periféricos */
+ 2290              		.loc 1 65 0
+ 2291 0024 FEFFFFEB 		bl	sys_init
+  66:../proyecto.c **** 	uart0_init();
+ 2292              		.loc 1 66 0
+ 2293 0028 FEFFFFEB 		bl	uart0_init
+  67:../proyecto.c **** 	lcd_init();
+ 2294              		.loc 1 67 0
+ 2295 002c FEFFFFEB 		bl	lcd_init
+  68:../proyecto.c ****     uda1341ts_init();
+ 2296              		.loc 1 68 0
+ 2297 0030 FEFFFFEB 		bl	uda1341ts_init
+  69:../proyecto.c ****     iis_init( IIS_POLLING );
+ 2298              		.loc 1 69 0
+ 2299 0034 0200A0E3 		mov	r0, #2
+ 2300 0038 FEFFFFEB 		bl	iis_init
+  70:../proyecto.c **** 
+  71:../proyecto.c ****           /* Muestra mensaje por la UART0 (conectar termite) */
+  72:../proyecto.c **** 
+  73:../proyecto.c ****     lcd_clear();
+ 2301              		.loc 1 73 0
+ 2302 003c FEFFFFEB 		bl	lcd_clear
+  74:../proyecto.c ****     lcd_on();
+ 2303              		.loc 1 74 0
+ 2304 0040 FEFFFFEB 		bl	lcd_on
+  75:../proyecto.c **** 	//lcd_puts( 20, 16, BLACK, "Recitando El Quijote" );          /* Muestra mensaje por el LCD (regul
+  76:../proyecto.c **** 
+  77:../proyecto.c ****     uda1341ts_setvol( VOL_MAX );
+ 2305              		.loc 1 77 0
+ 2306 0044 3F00A0E3 		mov	r0, #63
+ 2307 0048 FEFFFFEB 		bl	uda1341ts_setvol
+  78:../proyecto.c **** 
+  79:../proyecto.c **** 
+  80:../proyecto.c **** 
+  81:../proyecto.c ****     scheduler_init();
+ 2308              		.loc 1 81 0
+ 2309 004c FEFFFFEB 		bl	scheduler_init
+  82:../proyecto.c **** 
+  83:../proyecto.c **** 
+  84:../proyecto.c ****     create_task( Task1, INIT, 50 );   /* Crea las tareas de la aplicación */
+ 2310              		.loc 1 84 0
+ 2311 0050 80009FE5 		ldr	r0, .L3
+ 2312 0054 0010A0E3 		mov	r1, #0
+ 2313 0058 3220A0E3 		mov	r2, #50
+ 2314 005c FEFFFFEB 		bl	create_task
+  85:../proyecto.c ****     create_task( Task2, INIT, 10 );   /* La prioridad de las tareas es según el orden de creación: 
+ 2315              		.loc 1 85 0
+ 2316 0060 74009FE5 		ldr	r0, .L3+4
+ 2317 0064 0010A0E3 		mov	r1, #0
+ 2318 0068 0A20A0E3 		mov	r2, #10
+ 2319 006c FEFFFFEB 		bl	create_task
+  86:../proyecto.c ****     create_task( Task3, INIT, 50 );
+ 2320              		.loc 1 86 0
+ 2321 0070 68009FE5 		ldr	r0, .L3+8
+ 2322 0074 0010A0E3 		mov	r1, #0
+ 2323 0078 3220A0E3 		mov	r2, #50
+ 2324 007c FEFFFFEB 		bl	create_task
+  87:../proyecto.c ****     create_task( Task4, INIT, 30 );
+ 2325              		.loc 1 87 0
+ 2326 0080 5C009FE5 		ldr	r0, .L3+12
+ 2327 0084 0010A0E3 		mov	r1, #0
+ 2328 0088 1E20A0E3 		mov	r2, #30
+ 2329 008c FEFFFFEB 		bl	create_task
+  88:../proyecto.c ****     create_task( Task5, INIT, 30 );
+ 2330              		.loc 1 88 0
+ 2331 0090 50009FE5 		ldr	r0, .L3+16
+ 2332 0094 0010A0E3 		mov	r1, #0
+ 2333 0098 1E20A0E3 		mov	r2, #30
+ 2334 009c FEFFFFEB 		bl	create_task
+  89:../proyecto.c ****     create_task( Task6, INIT, 50);                          /* Instala isr_pb como RTI por presión 
+ 2335              		.loc 1 89 0
+ 2336 00a0 44009FE5 		ldr	r0, .L3+20
+ 2337 00a4 0010A0E3 		mov	r1, #0
+ 2338 00a8 3220A0E3 		mov	r2, #50
+ 2339 00ac FEFFFFEB 		bl	create_task
+  90:../proyecto.c **** 
+  91:../proyecto.c ****     timer0_open_tick( scheduler, TICKS_PER_SEC );  /* Instala scheduler como RTI del timer0  */
+ 2340              		.loc 1 91 0
+ 2341 00b0 38009FE5 		ldr	r0, .L3+24
+ 2342 00b4 6410A0E3 		mov	r1, #100
+ 2343 00b8 FEFFFFEB 		bl	timer0_open_tick
+  92:../proyecto.c ****        pbs_open( isr_pb );                            /* Instala isr_pb como RTI por presión de pul
+ 2344              		.loc 1 92 0
+ 2345 00bc 30009FE5 		ldr	r0, .L3+28
+ 2346 00c0 FEFFFFEB 		bl	pbs_open
+  93:../proyecto.c ****        keypad_open( isr_keypad );
+ 2347              		.loc 1 93 0
+ 2348 00c4 2C009FE5 		ldr	r0, .L3+32
+ 2349 00c8 FEFFFFEB 		bl	keypad_open
+ 2350              	.L2:
+  94:../proyecto.c ****       while( 1 )
+  95:../proyecto.c ****       {
+  96:../proyecto.c ****           sleep();        /* Entra en estado IDLE, sale por interrupción */
+ 2351              		.loc 1 96 0 discriminator 1
+ 2352 00cc FEFFFFEB 		bl	sleep
+  97:../proyecto.c **** 
+  98:../proyecto.c **** 
+  99:../proyecto.c **** 
+ 100:../proyecto.c ****           dispacher();  /* Todas las tareas preparadas se ejecutan en esta hebra en orden de priori
+ 2353              		.loc 1 100 0 discriminator 1
+ 2354 00d0 FEFFFFEB 		bl	dispacher
+ 101:../proyecto.c ****       }
+ 2355              		.loc 1 101 0 discriminator 1
+ 2356 00d4 FCFFFFEA 		b	.L2
+ 2357              	.L4:
+ 2358              		.align	2
+ 2359              	.L3:
+ 2360 00d8 00000000 		.word	Task1
+ 2361 00dc 00000000 		.word	Task2
+ 2362 00e0 00000000 		.word	Task3
+ 2363 00e4 00000000 		.word	Task4
+ 2364 00e8 00000000 		.word	Task5
+ 2365 00ec 00000000 		.word	Task6
+ 2366 00f0 00000000 		.word	scheduler
+ 2367 00f4 00000000 		.word	isr_pb
+ 2368 00f8 00000000 		.word	isr_keypad
+ 2369              		.cfi_endproc
+ 2370              	.LFE0:
+ 2372              		.section	.rodata
+ 2373              		.align	2
+ 2374              	.LC0:
+ 2375 0000 20546173 		.ascii	" Task 1: iniciada.\012\000"
+ 2375      6B20313A 
+ 2375      20696E69 
+ 2375      63696164 
+ 2375      612E0A00 
+ 2376              		.align	2
+ 2377              	.LC1:
+ 2378 0014 3A00     		.ascii	":\000"
+ 2379              		.text
+ 2380              		.align	2
+ 2381              		.global	Task1
+ 2383              	Task1:
+ 2384              	.LFB1:
+ 102:../proyecto.c **** 
+ 103:../proyecto.c ****   }
+ 104:../proyecto.c **** 
+ 105:../proyecto.c **** 
+ 106:../proyecto.c **** 
+ 107:../proyecto.c **** void Task1( uint32 *state, uint32 *period )
+ 108:../proyecto.c **** {
+ 2385              		.loc 1 108 0
+ 2386              		.cfi_startproc
+ 2387              		@ Function supports interworking.
+ 2388              		@ args = 0, pretend = 0, frame = 16
+ 2389              		@ frame_needed = 1, uses_anonymous_args = 0
+ 2390 00fc 0DC0A0E1 		mov	ip, sp
+ 2391              	.LCFI2:
+ 2392              		.cfi_def_cfa_register 12
+ 2393 0100 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 2394 0104 04B04CE2 		sub	fp, ip, #4
+ 2395              		.cfi_offset 14, -8
+ 2396              		.cfi_offset 13, -12
+ 2397              		.cfi_offset 11, -16
+ 2398              	.LCFI3:
+ 2399              		.cfi_def_cfa 11, 4
+ 2400 0108 10D04DE2 		sub	sp, sp, #16
+ 2401 010c 18000BE5 		str	r0, [fp, #-24]
+ 2402 0110 1C100BE5 		str	r1, [fp, #-28]
+ 109:../proyecto.c **** 	 rtc_time_t rtc_time;
+ 110:../proyecto.c **** 
+ 111:../proyecto.c **** 	    switch( *state )
+ 2403              		.loc 1 111 0
+ 2404 0114 18301BE5 		ldr	r3, [fp, #-24]
+ 2405 0118 003093E5 		ldr	r3, [r3, #0]
+ 2406 011c 000053E3 		cmp	r3, #0
+ 2407 0120 0500001A 		bne	.L13
+ 2408              	.L7:
+ 112:../proyecto.c **** 	    {
+ 113:../proyecto.c **** 	        case INIT:
+ 114:../proyecto.c **** 	            uart0_puts( " Task 1: iniciada.\n" );  /* Muestra un mensaje inicial en la UART0 (no e
+ 2409              		.loc 1 114 0
+ 2410 0124 EC009FE5 		ldr	r0, .L15
+ 2411 0128 FEFFFFEB 		bl	uart0_puts
+ 115:../proyecto.c **** 	            *state = RUN;
+ 2412              		.loc 1 115 0
+ 2413 012c 18301BE5 		ldr	r3, [fp, #-24]
+ 2414 0130 0120A0E3 		mov	r2, #1
+ 2415 0134 002083E5 		str	r2, [r3, #0]
+ 116:../proyecto.c **** 	            break;
+ 2416              		.loc 1 116 0
+ 2417 0138 330000EA 		b	.L5
+ 2418              	.L13:
+ 117:../proyecto.c **** 	        default:                       /* Cada 1s se escribe por pantalla la hora  */
+ 118:../proyecto.c **** 	        	if(flaglcd==TRUE){
+ 2419              		.loc 1 118 0
+ 2420 013c D8309FE5 		ldr	r3, .L15+4
+ 2421 0140 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2422 0144 010053E3 		cmp	r3, #1
+ 2423 0148 2E00001A 		bne	.L14
+ 119:../proyecto.c **** 
+ 120:../proyecto.c **** 	        	rtc_gettime( &rtc_time );
+ 2424              		.loc 1 120 0
+ 2425 014c 14304BE2 		sub	r3, fp, #20
+ 2426 0150 0300A0E1 		mov	r0, r3
+ 2427 0154 FEFFFFEB 		bl	rtc_gettime
+ 121:../proyecto.c **** 	        	 lcd_puts_x2(160,80,0xf,":");
+ 2428              		.loc 1 121 0
+ 2429 0158 A000A0E3 		mov	r0, #160
+ 2430 015c 5010A0E3 		mov	r1, #80
+ 2431 0160 0F20A0E3 		mov	r2, #15
+ 2432 0164 B4309FE5 		ldr	r3, .L15+8
+ 2433 0168 FEFFFFEB 		bl	lcd_puts_x2
+ 122:../proyecto.c **** 	        	 if(rtc_time.hour<10){
+ 2434              		.loc 1 122 0
+ 2435 016c 12305BE5 		ldrb	r3, [fp, #-18]	@ zero_extendqisi2
+ 2436 0170 090053E3 		cmp	r3, #9
+ 2437 0174 0A00008A 		bhi	.L10
+ 123:../proyecto.c **** 	        		 lcd_putintx10(5,32,0xf,0);
+ 2438              		.loc 1 123 0
+ 2439 0178 0500A0E3 		mov	r0, #5
+ 2440 017c 2010A0E3 		mov	r1, #32
+ 2441 0180 0F20A0E3 		mov	r2, #15
+ 2442 0184 0030A0E3 		mov	r3, #0
+ 2443 0188 FEFFFFEB 		bl	lcd_putintx10
+ 124:../proyecto.c **** 	        		 lcd_putintx10(80,32,0xf,rtc_time.hour);
+ 2444              		.loc 1 124 0
+ 2445 018c 12305BE5 		ldrb	r3, [fp, #-18]	@ zero_extendqisi2
+ 2446 0190 5000A0E3 		mov	r0, #80
+ 2447 0194 2010A0E3 		mov	r1, #32
+ 2448 0198 0F20A0E3 		mov	r2, #15
+ 2449 019c FEFFFFEB 		bl	lcd_putintx10
+ 2450 01a0 040000EA 		b	.L11
+ 2451              	.L10:
+ 125:../proyecto.c **** 	        	 }
+ 126:../proyecto.c **** 	        	 else{
+ 127:../proyecto.c **** 	        		 lcd_putintx10(5,32,0xf,rtc_time.hour);
+ 2452              		.loc 1 127 0
+ 2453 01a4 12305BE5 		ldrb	r3, [fp, #-18]	@ zero_extendqisi2
+ 2454 01a8 0500A0E3 		mov	r0, #5
+ 2455 01ac 2010A0E3 		mov	r1, #32
+ 2456 01b0 0F20A0E3 		mov	r2, #15
+ 2457 01b4 FEFFFFEB 		bl	lcd_putintx10
+ 2458              	.L11:
+ 128:../proyecto.c **** 	        	 }
+ 129:../proyecto.c **** 	        	 if(rtc_time.min<10){
+ 2459              		.loc 1 129 0
+ 2460 01b8 13305BE5 		ldrb	r3, [fp, #-19]	@ zero_extendqisi2
+ 2461 01bc 090053E3 		cmp	r3, #9
+ 2462 01c0 0A00008A 		bhi	.L12
+ 130:../proyecto.c **** 	        		 lcd_putintx10(180,32,0xf,0 );
+ 2463              		.loc 1 130 0
+ 2464 01c4 B400A0E3 		mov	r0, #180
+ 2465 01c8 2010A0E3 		mov	r1, #32
+ 2466 01cc 0F20A0E3 		mov	r2, #15
+ 2467 01d0 0030A0E3 		mov	r3, #0
+ 2468 01d4 FEFFFFEB 		bl	lcd_putintx10
+ 131:../proyecto.c **** 	        		 lcd_putintx10(260,32,0xf,rtc_time.min );
+ 2469              		.loc 1 131 0
+ 2470 01d8 13305BE5 		ldrb	r3, [fp, #-19]	@ zero_extendqisi2
+ 2471 01dc 410FA0E3 		mov	r0, #260
+ 2472 01e0 2010A0E3 		mov	r1, #32
+ 2473 01e4 0F20A0E3 		mov	r2, #15
+ 2474 01e8 FEFFFFEB 		bl	lcd_putintx10
+ 132:../proyecto.c **** 	        	 }
+ 133:../proyecto.c **** 	        	 else
+ 134:../proyecto.c ****                 lcd_putintx10(180,32,0xf,rtc_time.min );
+ 135:../proyecto.c **** 	        	}
+ 136:../proyecto.c **** 	        	 break;
+ 2475              		.loc 1 136 0
+ 2476 01ec 060000EA 		b	.L5
+ 2477              	.L12:
+ 134:../proyecto.c ****                 lcd_putintx10(180,32,0xf,rtc_time.min );
+ 2478              		.loc 1 134 0
+ 2479 01f0 13305BE5 		ldrb	r3, [fp, #-19]	@ zero_extendqisi2
+ 2480 01f4 B400A0E3 		mov	r0, #180
+ 2481 01f8 2010A0E3 		mov	r1, #32
+ 2482 01fc 0F20A0E3 		mov	r2, #15
+ 2483 0200 FEFFFFEB 		bl	lcd_putintx10
+ 2484              		.loc 1 136 0
+ 2485 0204 000000EA 		b	.L5
+ 2486              	.L14:
+ 2487 0208 0000A0E1 		mov	r0, r0	@ nop
+ 2488              	.L5:
+ 137:../proyecto.c **** 	    };
+ 138:../proyecto.c **** }
+ 2489              		.loc 1 138 0
+ 2490 020c 0CD04BE2 		sub	sp, fp, #12
+ 2491 0210 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 2492 0214 1EFF2FE1 		bx	lr
+ 2493              	.L16:
+ 2494              		.align	2
+ 2495              	.L15:
+ 2496 0218 00000000 		.word	.LC0
+ 2497 021c 00000000 		.word	flaglcd
+ 2498 0220 14000000 		.word	.LC1
+ 2499              		.cfi_endproc
+ 2500              	.LFE1:
+ 2502              		.section	.rodata
+ 2503 0016 0000     		.align	2
+ 2504              	.LC2:
+ 2505 0018 20546173 		.ascii	" Task 2: iniciada.\012\000"
+ 2505      6B20323A 
+ 2505      20696E69 
+ 2505      63696164 
+ 2505      612E0A00 
+ 2506              		.text
+ 2507              		.align	2
+ 2508              		.global	Task2
+ 2510              	Task2:
+ 2511              	.LFB2:
+ 139:../proyecto.c **** 
+ 140:../proyecto.c **** void Task2( uint32 *state, uint32 *period )  /* Cada 0,1 segundos (10 ticks) muestrea el keypad y e
+ 141:../proyecto.c **** {
+ 2512              		.loc 1 141 0
+ 2513              		.cfi_startproc
+ 2514              		@ Function supports interworking.
+ 2515              		@ args = 0, pretend = 0, frame = 8
+ 2516              		@ frame_needed = 1, uses_anonymous_args = 0
+ 2517 0224 0DC0A0E1 		mov	ip, sp
+ 2518              	.LCFI4:
+ 2519              		.cfi_def_cfa_register 12
+ 2520 0228 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 2521 022c 04B04CE2 		sub	fp, ip, #4
+ 2522              		.cfi_offset 14, -8
+ 2523              		.cfi_offset 13, -12
+ 2524              		.cfi_offset 11, -16
+ 2525              	.LCFI5:
+ 2526              		.cfi_def_cfa 11, 4
+ 2527 0230 08D04DE2 		sub	sp, sp, #8
+ 2528 0234 10000BE5 		str	r0, [fp, #-16]
+ 2529 0238 14100BE5 		str	r1, [fp, #-20]
+ 142:../proyecto.c ****     switch( *state )
+ 2530              		.loc 1 142 0
+ 2531 023c 10301BE5 		ldr	r3, [fp, #-16]
+ 2532 0240 003093E5 		ldr	r3, [r3, #0]
+ 2533 0244 000053E3 		cmp	r3, #0
+ 2534 0248 0200000A 		beq	.L19
+ 2535 024c 010053E3 		cmp	r3, #1
+ 2536 0250 0600000A 		beq	.L20
+ 2537 0254 0E0000EA 		b	.L17
+ 2538              	.L19:
+ 143:../proyecto.c ****     {
+ 144:../proyecto.c ****         case INIT:
+ 145:../proyecto.c ****             uart0_puts( " Task 2: iniciada.\n" );  /* Muestra un mensaje inicial en la UART0 (no es
+ 2539              		.loc 1 145 0
+ 2540 0258 40009FE5 		ldr	r0, .L23
+ 2541 025c FEFFFFEB 		bl	uart0_puts
+ 146:../proyecto.c ****             *state = WAIT_KEYDOWN;
+ 2542              		.loc 1 146 0
+ 2543 0260 10301BE5 		ldr	r3, [fp, #-16]
+ 2544 0264 0120A0E3 		mov	r2, #1
+ 2545 0268 002083E5 		str	r2, [r3, #0]
+ 147:../proyecto.c ****             break;
+ 2546              		.loc 1 147 0
+ 2547 026c 080000EA 		b	.L17
+ 2548              	.L20:
+ 148:../proyecto.c ****         case WAIT_KEYDOWN:
+ 149:../proyecto.c ****           if(scancode==KEYPAD_KEY2){
+ 2549              		.loc 1 149 0
+ 2550 0270 2C309FE5 		ldr	r3, .L23+4
+ 2551 0274 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2552 0278 020053E3 		cmp	r3, #2
+ 2553 027c 0300001A 		bne	.L22
+ 150:../proyecto.c ****         	  flagTask5=TRUE;
+ 2554              		.loc 1 150 0
+ 2555 0280 20309FE5 		ldr	r3, .L23+8
+ 2556 0284 0120A0E3 		mov	r2, #1
+ 2557 0288 0020C3E5 		strb	r2, [r3, #0]
+ 151:../proyecto.c ****           }
+ 152:../proyecto.c ****           break;
+ 2558              		.loc 1 152 0
+ 2559 028c 000000EA 		b	.L17
+ 2560              	.L22:
+ 2561 0290 0000A0E1 		mov	r0, r0	@ nop
+ 2562              	.L17:
+ 153:../proyecto.c ****     };
+ 154:../proyecto.c **** }
+ 2563              		.loc 1 154 0
+ 2564 0294 0CD04BE2 		sub	sp, fp, #12
+ 2565 0298 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 2566 029c 1EFF2FE1 		bx	lr
+ 2567              	.L24:
+ 2568              		.align	2
+ 2569              	.L23:
+ 2570 02a0 18000000 		.word	.LC2
+ 2571 02a4 00000000 		.word	scancode
+ 2572 02a8 00000000 		.word	flagTask5
+ 2573              		.cfi_endproc
+ 2574              	.LFE2:
+ 2576              		.section	.rodata
+ 2577              		.align	2
+ 2578              	.LC3:
+ 2579 002c 20546173 		.ascii	" Task 3: iniciada.\012\000"
+ 2579      6B20333A 
+ 2579      20696E69 
+ 2579      63696164 
+ 2579      612E0A00 
+ 2580              		.align	2
+ 2581              	.LC4:
+ 2582 0040 4C617300 		.ascii	"Las\000"
+ 2583              		.align	2
+ 2584              	.LC5:
+ 2585 0044 4C6100   		.ascii	"La\000"
+ 2586 0047 00       		.align	2
+ 2587              	.LC6:
+ 2588 0048 20686F72 		.ascii	" horas y \000"
+ 2588      61732079 
+ 2588      2000
+ 2589 0052 0000     		.align	2
+ 2590              	.LC7:
+ 2591 0054 206D696E 		.ascii	" minutos\000"
+ 2591      75746F73 
+ 2591      00
+ 2592              		.text
+ 2593              		.align	2
+ 2594              		.global	Task3
+ 2596              	Task3:
+ 2597              	.LFB3:
+ 155:../proyecto.c **** 
+ 156:../proyecto.c **** void Task3( uint32 *state, uint32 *period  )
+ 157:../proyecto.c **** {
+ 2598              		.loc 1 157 0
+ 2599              		.cfi_startproc
+ 2600              		@ Function supports interworking.
+ 2601              		@ args = 0, pretend = 0, frame = 16
+ 2602              		@ frame_needed = 1, uses_anonymous_args = 0
+ 2603 02ac 0DC0A0E1 		mov	ip, sp
+ 2604              	.LCFI6:
+ 2605              		.cfi_def_cfa_register 12
+ 2606 02b0 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 2607 02b4 04B04CE2 		sub	fp, ip, #4
+ 2608              		.cfi_offset 14, -8
+ 2609              		.cfi_offset 13, -12
+ 2610              		.cfi_offset 11, -16
+ 2611              	.LCFI7:
+ 2612              		.cfi_def_cfa 11, 4
+ 2613 02b8 10D04DE2 		sub	sp, sp, #16
+ 2614 02bc 18000BE5 		str	r0, [fp, #-24]
+ 2615 02c0 1C100BE5 		str	r1, [fp, #-28]
+ 158:../proyecto.c ****     rtc_time_t rtc_time;
+ 159:../proyecto.c **** 
+ 160:../proyecto.c ****     switch( *state )
+ 2616              		.loc 1 160 0
+ 2617 02c4 18301BE5 		ldr	r3, [fp, #-24]
+ 2618 02c8 003093E5 		ldr	r3, [r3, #0]
+ 2619 02cc 000053E3 		cmp	r3, #0
+ 2620 02d0 0500001A 		bne	.L32
+ 2621              	.L27:
+ 161:../proyecto.c ****     {
+ 162:../proyecto.c ****         case INIT:
+ 163:../proyecto.c ****             uart0_puts( " Task 3: iniciada.\n" );  /* Muestra un mensaje inicial en la UART0 (no es
+ 2622              		.loc 1 163 0
+ 2623 02d4 B4009FE5 		ldr	r0, .L34
+ 2624 02d8 FEFFFFEB 		bl	uart0_puts
+ 164:../proyecto.c ****             *state = RUN;
+ 2625              		.loc 1 164 0
+ 2626 02dc 18301BE5 		ldr	r3, [fp, #-24]
+ 2627 02e0 0120A0E3 		mov	r2, #1
+ 2628 02e4 002083E5 		str	r2, [r3, #0]
+ 165:../proyecto.c ****             break;
+ 2629              		.loc 1 165 0
+ 2630 02e8 250000EA 		b	.L25
+ 2631              	.L32:
+ 166:../proyecto.c ****         default:
+ 167:../proyecto.c ****         	if(PbLeft==TRUE){
+ 2632              		.loc 1 167 0
+ 2633 02ec A0309FE5 		ldr	r3, .L34+4
+ 2634 02f0 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2635 02f4 010053E3 		cmp	r3, #1
+ 2636 02f8 2000001A 		bne	.L33
+ 168:../proyecto.c **** 
+ 169:../proyecto.c ****         		rtc_gettime( &rtc_time );
+ 2637              		.loc 1 169 0
+ 2638 02fc 14304BE2 		sub	r3, fp, #20
+ 2639 0300 0300A0E1 		mov	r0, r3
+ 2640 0304 FEFFFFEB 		bl	rtc_gettime
+ 170:../proyecto.c ****         		if(rtc_time.hour!=1){
+ 2641              		.loc 1 170 0
+ 2642 0308 12305BE5 		ldrb	r3, [fp, #-18]	@ zero_extendqisi2
+ 2643 030c 010053E3 		cmp	r3, #1
+ 2644 0310 0200000A 		beq	.L30
+ 171:../proyecto.c ****         		iis_textToSpeech( "Las" );
+ 2645              		.loc 1 171 0
+ 2646 0314 7C009FE5 		ldr	r0, .L34+8
+ 2647 0318 FEFFFFEB 		bl	iis_textToSpeech
+ 2648 031c 010000EA 		b	.L31
+ 2649              	.L30:
+ 172:../proyecto.c ****         		}else	iis_textToSpeech( "La" );
+ 2650              		.loc 1 172 0
+ 2651 0320 74009FE5 		ldr	r0, .L34+12
+ 2652 0324 FEFFFFEB 		bl	iis_textToSpeech
+ 2653              	.L31:
+ 173:../proyecto.c ****         		iis_textToSpeechInteger((uint32)rtc_time.hour);
+ 2654              		.loc 1 173 0
+ 2655 0328 12305BE5 		ldrb	r3, [fp, #-18]	@ zero_extendqisi2
+ 2656 032c 0300A0E1 		mov	r0, r3
+ 2657 0330 FEFFFFEB 		bl	iis_textToSpeechInteger
+ 174:../proyecto.c ****         		 uart0_putint((uint32)rtc_time.hour);
+ 2658              		.loc 1 174 0
+ 2659 0334 12305BE5 		ldrb	r3, [fp, #-18]	@ zero_extendqisi2
+ 2660 0338 0300A0E1 		mov	r0, r3
+ 2661 033c FEFFFFEB 		bl	uart0_putint
+ 175:../proyecto.c ****         		 uart0_puts(":");
+ 2662              		.loc 1 175 0
+ 2663 0340 58009FE5 		ldr	r0, .L34+16
+ 2664 0344 FEFFFFEB 		bl	uart0_puts
+ 176:../proyecto.c ****         		 uart0_putint((uint32)rtc_time.min);
+ 2665              		.loc 1 176 0
+ 2666 0348 13305BE5 		ldrb	r3, [fp, #-19]	@ zero_extendqisi2
+ 2667 034c 0300A0E1 		mov	r0, r3
+ 2668 0350 FEFFFFEB 		bl	uart0_putint
+ 177:../proyecto.c ****         		iis_textToSpeech(" horas y ");
+ 2669              		.loc 1 177 0
+ 2670 0354 48009FE5 		ldr	r0, .L34+20
+ 2671 0358 FEFFFFEB 		bl	iis_textToSpeech
+ 178:../proyecto.c ****         		iis_textToSpeechInteger((uint32)rtc_time.min);
+ 2672              		.loc 1 178 0
+ 2673 035c 13305BE5 		ldrb	r3, [fp, #-19]	@ zero_extendqisi2
+ 2674 0360 0300A0E1 		mov	r0, r3
+ 2675 0364 FEFFFFEB 		bl	iis_textToSpeechInteger
+ 179:../proyecto.c ****         		iis_textToSpeech(" minutos");
+ 2676              		.loc 1 179 0
+ 2677 0368 38009FE5 		ldr	r0, .L34+24
+ 2678 036c FEFFFFEB 		bl	iis_textToSpeech
+ 180:../proyecto.c ****         		PbLeft=FALSE;
+ 2679              		.loc 1 180 0
+ 2680 0370 1C309FE5 		ldr	r3, .L34+4
+ 2681 0374 0020A0E3 		mov	r2, #0
+ 2682 0378 0020C3E5 		strb	r2, [r3, #0]
+ 181:../proyecto.c ****         	}
+ 182:../proyecto.c ****             break;
+ 2683              		.loc 1 182 0
+ 2684 037c 000000EA 		b	.L25
+ 2685              	.L33:
+ 2686 0380 0000A0E1 		mov	r0, r0	@ nop
+ 2687              	.L25:
+ 183:../proyecto.c ****     };
+ 184:../proyecto.c **** }
+ 2688              		.loc 1 184 0
+ 2689 0384 0CD04BE2 		sub	sp, fp, #12
+ 2690 0388 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 2691 038c 1EFF2FE1 		bx	lr
+ 2692              	.L35:
+ 2693              		.align	2
+ 2694              	.L34:
+ 2695 0390 2C000000 		.word	.LC3
+ 2696 0394 00000000 		.word	PbLeft
+ 2697 0398 40000000 		.word	.LC4
+ 2698 039c 44000000 		.word	.LC5
+ 2699 03a0 14000000 		.word	.LC1
+ 2700 03a4 48000000 		.word	.LC6
+ 2701 03a8 54000000 		.word	.LC7
+ 2702              		.cfi_endproc
+ 2703              	.LFE3:
+ 2705              		.section	.rodata
+ 2706 005d 000000   		.align	2
+ 2707              	.LC8:
+ 2708 0060 20546173 		.ascii	" Task 4: iniciada.\012\000"
+ 2708      6B20343A 
+ 2708      20696E69 
+ 2708      63696164 
+ 2708      612E0A00 
+ 2709              		.align	2
+ 2710              	.LC9:
+ 2711 0074 45646974 		.ascii	"Editando horas\000"
+ 2711      616E646F 
+ 2711      20686F72 
+ 2711      617300
+ 2712 0083 00       		.align	2
+ 2713              	.LC10:
+ 2714 0084 45646974 		.ascii	"Editando minutos\000"
+ 2714      616E646F 
+ 2714      206D696E 
+ 2714      75746F73 
+ 2714      00
+ 2715 0095 000000   		.align	2
+ 2716              	.LC11:
+ 2717 0098 45646974 		.ascii	"Editando segundos\000"
+ 2717      616E646F 
+ 2717      20736567 
+ 2717      756E646F 
+ 2717      7300
+ 2718 00aa 0000     		.align	2
+ 2719              	.LC12:
+ 2720 00ac 73756D61 		.ascii	"sumando horas\000"
+ 2720      6E646F20 
+ 2720      686F7261 
+ 2720      7300
+ 2721 00ba 0000     		.align	2
+ 2722              	.LC13:
+ 2723 00bc 73756D61 		.ascii	"sumando minutos\000"
+ 2723      6E646F20 
+ 2723      6D696E75 
+ 2723      746F7300 
+ 2724              		.align	2
+ 2725              	.LC14:
+ 2726 00cc 73756D61 		.ascii	"sumando segundos\000"
+ 2726      6E646F20 
+ 2726      73656775 
+ 2726      6E646F73 
+ 2726      00
+ 2727 00dd 000000   		.align	2
+ 2728              	.LC15:
+ 2729 00e0 72657374 		.ascii	"restando horas\000"
+ 2729      616E646F 
+ 2729      20686F72 
+ 2729      617300
+ 2730 00ef 00       		.align	2
+ 2731              	.LC16:
+ 2732 00f0 72657374 		.ascii	"restando minutos\000"
+ 2732      616E646F 
+ 2732      206D696E 
+ 2732      75746F73 
+ 2732      00
+ 2733 0101 000000   		.align	2
+ 2734              	.LC17:
+ 2735 0104 72657374 		.ascii	"restando segundos\000"
+ 2735      616E646F 
+ 2735      20736567 
+ 2735      756E646F 
+ 2735      7300
+ 2736              		.text
+ 2737              		.align	2
+ 2738              		.global	Task4
+ 2740              	Task4:
+ 2741              	.LFB4:
+ 185:../proyecto.c **** 
+ 186:../proyecto.c **** 
+ 187:../proyecto.c **** void Task4( uint32 *state, uint32 *period )
+ 188:../proyecto.c **** {
+ 2742              		.loc 1 188 0
+ 2743              		.cfi_startproc
+ 2744              		@ Function supports interworking.
+ 2745              		@ args = 0, pretend = 0, frame = 16
+ 2746              		@ frame_needed = 1, uses_anonymous_args = 0
+ 2747 03ac 0DC0A0E1 		mov	ip, sp
+ 2748              	.LCFI8:
+ 2749              		.cfi_def_cfa_register 12
+ 2750 03b0 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 2751 03b4 04B04CE2 		sub	fp, ip, #4
+ 2752              		.cfi_offset 14, -8
+ 2753              		.cfi_offset 13, -12
+ 2754              		.cfi_offset 11, -16
+ 2755              	.LCFI9:
+ 2756              		.cfi_def_cfa 11, 4
+ 2757 03b8 10D04DE2 		sub	sp, sp, #16
+ 2758 03bc 18000BE5 		str	r0, [fp, #-24]
+ 2759 03c0 1C100BE5 		str	r1, [fp, #-28]
+ 189:../proyecto.c **** 	 rtc_time_t rtc_time;
+ 190:../proyecto.c **** 	 uint8 ajustes;
+ 191:../proyecto.c ****     switch( *state )
+ 2760              		.loc 1 191 0
+ 2761 03c4 18301BE5 		ldr	r3, [fp, #-24]
+ 2762 03c8 003093E5 		ldr	r3, [r3, #0]
+ 2763 03cc 000053E3 		cmp	r3, #0
+ 2764 03d0 0500001A 		bne	.L59
+ 2765              	.L38:
+ 192:../proyecto.c ****     {
+ 193:../proyecto.c ****         case INIT:
+ 194:../proyecto.c ****             uart0_puts( " Task 4: iniciada.\n" );
+ 2766              		.loc 1 194 0
+ 2767 03d4 50039FE5 		ldr	r0, .L61
+ 2768 03d8 FEFFFFEB 		bl	uart0_puts
+ 195:../proyecto.c ****             *state = RUN;
+ 2769              		.loc 1 195 0
+ 2770 03dc 18301BE5 		ldr	r3, [fp, #-24]
+ 2771 03e0 0120A0E3 		mov	r2, #1
+ 2772 03e4 002083E5 		str	r2, [r3, #0]
+ 196:../proyecto.c ****             break;
+ 2773              		.loc 1 196 0
+ 2774 03e8 CC0000EA 		b	.L36
+ 2775              	.L59:
+ 197:../proyecto.c ****         default:
+ 198:../proyecto.c **** 
+ 199:../proyecto.c ****         	if(PbRight==TRUE){
+ 2776              		.loc 1 199 0
+ 2777 03ec 3C339FE5 		ldr	r3, .L61+4
+ 2778 03f0 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2779 03f4 010053E3 		cmp	r3, #1
+ 2780 03f8 C700001A 		bne	.L60
+ 200:../proyecto.c ****         	ajustes=0;
+ 2781              		.loc 1 200 0
+ 2782 03fc 0030A0E3 		mov	r3, #0
+ 2783 0400 0D304BE5 		strb	r3, [fp, #-13]
+ 201:../proyecto.c ****         	flaglcd=FALSE;
+ 2784              		.loc 1 201 0
+ 2785 0404 28339FE5 		ldr	r3, .L61+8
+ 2786 0408 0020A0E3 		mov	r2, #0
+ 2787 040c 0020C3E5 		strb	r2, [r3, #0]
+ 202:../proyecto.c ****         	PbRight=FALSE;
+ 2788              		.loc 1 202 0
+ 2789 0410 18339FE5 		ldr	r3, .L61+4
+ 2790 0414 0020A0E3 		mov	r2, #0
+ 2791 0418 0020C3E5 		strb	r2, [r3, #0]
+ 203:../proyecto.c ****         	rtc_gettime( &rtc_time );
+ 2792              		.loc 1 203 0
+ 2793 041c 14304BE2 		sub	r3, fp, #20
+ 2794 0420 0300A0E1 		mov	r0, r3
+ 2795 0424 FEFFFFEB 		bl	rtc_gettime
+ 204:../proyecto.c ****         	while(ajustes<3){
+ 2796              		.loc 1 204 0
+ 2797 0428 AD0000EA 		b	.L41
+ 2798              	.L58:
+ 205:../proyecto.c **** 
+ 206:../proyecto.c ****            lcd_puts_x2(160,80,0xf,":");
+ 2799              		.loc 1 206 0
+ 2800 042c A000A0E3 		mov	r0, #160
+ 2801 0430 5010A0E3 		mov	r1, #80
+ 2802 0434 0F20A0E3 		mov	r2, #15
+ 2803 0438 F8329FE5 		ldr	r3, .L61+12
+ 2804 043c FEFFFFEB 		bl	lcd_puts_x2
+ 207:../proyecto.c ****         		if(rtc_time.hour<10){
+ 2805              		.loc 1 207 0
+ 2806 0440 12305BE5 		ldrb	r3, [fp, #-18]	@ zero_extendqisi2
+ 2807 0444 090053E3 		cmp	r3, #9
+ 2808 0448 0A00008A 		bhi	.L42
+ 208:../proyecto.c ****         		lcd_putintx10(5,32,0xf,0);
+ 2809              		.loc 1 208 0
+ 2810 044c 0500A0E3 		mov	r0, #5
+ 2811 0450 2010A0E3 		mov	r1, #32
+ 2812 0454 0F20A0E3 		mov	r2, #15
+ 2813 0458 0030A0E3 		mov	r3, #0
+ 2814 045c FEFFFFEB 		bl	lcd_putintx10
+ 209:../proyecto.c ****         		lcd_putintx10(80,32,0xf,rtc_time.hour);
+ 2815              		.loc 1 209 0
+ 2816 0460 12305BE5 		ldrb	r3, [fp, #-18]	@ zero_extendqisi2
+ 2817 0464 5000A0E3 		mov	r0, #80
+ 2818 0468 2010A0E3 		mov	r1, #32
+ 2819 046c 0F20A0E3 		mov	r2, #15
+ 2820 0470 FEFFFFEB 		bl	lcd_putintx10
+ 2821 0474 040000EA 		b	.L43
+ 2822              	.L42:
+ 210:../proyecto.c ****         			 }
+ 211:../proyecto.c ****         		 else{
+ 212:../proyecto.c ****         	    lcd_putintx10(5,32,0xf,rtc_time.hour);
+ 2823              		.loc 1 212 0
+ 2824 0478 12305BE5 		ldrb	r3, [fp, #-18]	@ zero_extendqisi2
+ 2825 047c 0500A0E3 		mov	r0, #5
+ 2826 0480 2010A0E3 		mov	r1, #32
+ 2827 0484 0F20A0E3 		mov	r2, #15
+ 2828 0488 FEFFFFEB 		bl	lcd_putintx10
+ 2829              	.L43:
+ 213:../proyecto.c ****         		 }
+ 214:../proyecto.c **** 
+ 215:../proyecto.c ****             if(ajustes<2){
+ 2830              		.loc 1 215 0
+ 2831 048c 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 2832 0490 010053E3 		cmp	r3, #1
+ 2833 0494 1300008A 		bhi	.L44
+ 216:../proyecto.c ****             	if(rtc_time.min<10){
+ 2834              		.loc 1 216 0
+ 2835 0498 13305BE5 		ldrb	r3, [fp, #-19]	@ zero_extendqisi2
+ 2836 049c 090053E3 		cmp	r3, #9
+ 2837 04a0 0A00008A 		bhi	.L45
+ 217:../proyecto.c ****             	 lcd_putintx10(180,32,0xf,0 );
+ 2838              		.loc 1 217 0
+ 2839 04a4 B400A0E3 		mov	r0, #180
+ 2840 04a8 2010A0E3 		mov	r1, #32
+ 2841 04ac 0F20A0E3 		mov	r2, #15
+ 2842 04b0 0030A0E3 		mov	r3, #0
+ 2843 04b4 FEFFFFEB 		bl	lcd_putintx10
+ 218:../proyecto.c ****             	 lcd_putintx10(260,32,0xf,rtc_time.min );
+ 2844              		.loc 1 218 0
+ 2845 04b8 13305BE5 		ldrb	r3, [fp, #-19]	@ zero_extendqisi2
+ 2846 04bc 410FA0E3 		mov	r0, #260
+ 2847 04c0 2010A0E3 		mov	r1, #32
+ 2848 04c4 0F20A0E3 		mov	r2, #15
+ 2849 04c8 FEFFFFEB 		bl	lcd_putintx10
+ 2850 04cc 180000EA 		b	.L46
+ 2851              	.L45:
+ 219:../proyecto.c ****             	  }
+ 220:../proyecto.c ****             	 else{
+ 221:../proyecto.c ****             	 lcd_putintx10(180,32,0xf,rtc_time.min );
+ 2852              		.loc 1 221 0
+ 2853 04d0 13305BE5 		ldrb	r3, [fp, #-19]	@ zero_extendqisi2
+ 2854 04d4 B400A0E3 		mov	r0, #180
+ 2855 04d8 2010A0E3 		mov	r1, #32
+ 2856 04dc 0F20A0E3 		mov	r2, #15
+ 2857 04e0 FEFFFFEB 		bl	lcd_putintx10
+ 2858 04e4 120000EA 		b	.L46
+ 2859              	.L44:
+ 222:../proyecto.c ****             	 }
+ 223:../proyecto.c ****             }
+ 224:../proyecto.c ****             else{
+ 225:../proyecto.c ****             	if(rtc_time.sec<10){
+ 2860              		.loc 1 225 0
+ 2861 04e8 14305BE5 		ldrb	r3, [fp, #-20]	@ zero_extendqisi2
+ 2862 04ec 090053E3 		cmp	r3, #9
+ 2863 04f0 0A00008A 		bhi	.L47
+ 226:../proyecto.c ****             	lcd_putintx10(180,32,0xf,0 );
+ 2864              		.loc 1 226 0
+ 2865 04f4 B400A0E3 		mov	r0, #180
+ 2866 04f8 2010A0E3 		mov	r1, #32
+ 2867 04fc 0F20A0E3 		mov	r2, #15
+ 2868 0500 0030A0E3 		mov	r3, #0
+ 2869 0504 FEFFFFEB 		bl	lcd_putintx10
+ 227:../proyecto.c ****             	lcd_putintx10(260,32,0xf,rtc_time.sec );
+ 2870              		.loc 1 227 0
+ 2871 0508 14305BE5 		ldrb	r3, [fp, #-20]	@ zero_extendqisi2
+ 2872 050c 410FA0E3 		mov	r0, #260
+ 2873 0510 2010A0E3 		mov	r1, #32
+ 2874 0514 0F20A0E3 		mov	r2, #15
+ 2875 0518 FEFFFFEB 		bl	lcd_putintx10
+ 2876 051c 040000EA 		b	.L46
+ 2877              	.L47:
+ 228:../proyecto.c ****             	}
+ 229:../proyecto.c ****             	else{
+ 230:../proyecto.c ****             	lcd_putintx10(180,32,0xf,rtc_time.sec );
+ 2878              		.loc 1 230 0
+ 2879 0520 14305BE5 		ldrb	r3, [fp, #-20]	@ zero_extendqisi2
+ 2880 0524 B400A0E3 		mov	r0, #180
+ 2881 0528 2010A0E3 		mov	r1, #32
+ 2882 052c 0F20A0E3 		mov	r2, #15
+ 2883 0530 FEFFFFEB 		bl	lcd_putintx10
+ 2884              	.L46:
+ 231:../proyecto.c ****             	}
+ 232:../proyecto.c **** 
+ 233:../proyecto.c ****             }
+ 234:../proyecto.c ****             if(ajustes==0){
+ 2885              		.loc 1 234 0
+ 2886 0534 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 2887 0538 000053E3 		cmp	r3, #0
+ 2888 053c 0700001A 		bne	.L48
+ 235:../proyecto.c ****             lcd_puts_x2(5,160,0xf,"Editando horas");
+ 2889              		.loc 1 235 0
+ 2890 0540 0500A0E3 		mov	r0, #5
+ 2891 0544 A010A0E3 		mov	r1, #160
+ 2892 0548 0F20A0E3 		mov	r2, #15
+ 2893 054c E8319FE5 		ldr	r3, .L61+16
+ 2894 0550 FEFFFFEB 		bl	lcd_puts_x2
+ 236:../proyecto.c ****             iis_textToSpeech("Editando horas");
+ 2895              		.loc 1 236 0
+ 2896 0554 E0019FE5 		ldr	r0, .L61+16
+ 2897 0558 FEFFFFEB 		bl	iis_textToSpeech
+ 2898 055c 140000EA 		b	.L49
+ 2899              	.L48:
+ 237:../proyecto.c ****             }else if(ajustes==1){
+ 2900              		.loc 1 237 0
+ 2901 0560 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 2902 0564 010053E3 		cmp	r3, #1
+ 2903 0568 0700001A 		bne	.L50
+ 238:../proyecto.c ****             lcd_puts_x2(5,160,0xf,"Editando minutos");
+ 2904              		.loc 1 238 0
+ 2905 056c 0500A0E3 		mov	r0, #5
+ 2906 0570 A010A0E3 		mov	r1, #160
+ 2907 0574 0F20A0E3 		mov	r2, #15
+ 2908 0578 C0319FE5 		ldr	r3, .L61+20
+ 2909 057c FEFFFFEB 		bl	lcd_puts_x2
+ 239:../proyecto.c ****             iis_textToSpeech("Editando minutos");
+ 2910              		.loc 1 239 0
+ 2911 0580 B8019FE5 		ldr	r0, .L61+20
+ 2912 0584 FEFFFFEB 		bl	iis_textToSpeech
+ 2913 0588 090000EA 		b	.L49
+ 2914              	.L50:
+ 240:../proyecto.c ****             }
+ 241:../proyecto.c ****             else if(ajustes==2){
+ 2915              		.loc 1 241 0
+ 2916 058c 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 2917 0590 020053E3 		cmp	r3, #2
+ 2918 0594 0600001A 		bne	.L49
+ 242:../proyecto.c ****             iis_textToSpeech("Editando segundos");
+ 2919              		.loc 1 242 0
+ 2920 0598 A4019FE5 		ldr	r0, .L61+24
+ 2921 059c FEFFFFEB 		bl	iis_textToSpeech
+ 243:../proyecto.c ****             lcd_puts_x2(5,160,0xf,"Editando segundos");
+ 2922              		.loc 1 243 0
+ 2923 05a0 0500A0E3 		mov	r0, #5
+ 2924 05a4 A010A0E3 		mov	r1, #160
+ 2925 05a8 0F20A0E3 		mov	r2, #15
+ 2926 05ac 90319FE5 		ldr	r3, .L61+24
+ 2927 05b0 FEFFFFEB 		bl	lcd_puts_x2
+ 2928              	.L49:
+ 244:../proyecto.c ****             }
+ 245:../proyecto.c ****             if(scancode==KEYPAD_KEY0){
+ 2929              		.loc 1 245 0
+ 2930 05b4 8C319FE5 		ldr	r3, .L61+28
+ 2931 05b8 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2932 05bc 000053E3 		cmp	r3, #0
+ 2933 05c0 1900001A 		bne	.L51
+ 246:../proyecto.c **** 
+ 247:../proyecto.c ****             	if(ajustes==0){
+ 2934              		.loc 1 247 0
+ 2935 05c4 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 2936 05c8 000053E3 		cmp	r3, #0
+ 2937 05cc 0600001A 		bne	.L52
+ 248:../proyecto.c ****             		rtc_time.hour++;
+ 2938              		.loc 1 248 0
+ 2939 05d0 12305BE5 		ldrb	r3, [fp, #-18]	@ zero_extendqisi2
+ 2940 05d4 013083E2 		add	r3, r3, #1
+ 2941 05d8 FF3003E2 		and	r3, r3, #255
+ 2942 05dc 12304BE5 		strb	r3, [fp, #-18]
+ 249:../proyecto.c ****             		iis_textToSpeech("sumando horas");
+ 2943              		.loc 1 249 0
+ 2944 05e0 64019FE5 		ldr	r0, .L61+32
+ 2945 05e4 FEFFFFEB 		bl	iis_textToSpeech
+ 2946 05e8 0F0000EA 		b	.L51
+ 2947              	.L52:
+ 250:../proyecto.c ****             	}
+ 251:../proyecto.c ****             	else if(ajustes==1){
+ 2948              		.loc 1 251 0
+ 2949 05ec 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 2950 05f0 010053E3 		cmp	r3, #1
+ 2951 05f4 0600001A 		bne	.L53
+ 252:../proyecto.c ****             		rtc_time.min++;
+ 2952              		.loc 1 252 0
+ 2953 05f8 13305BE5 		ldrb	r3, [fp, #-19]	@ zero_extendqisi2
+ 2954 05fc 013083E2 		add	r3, r3, #1
+ 2955 0600 FF3003E2 		and	r3, r3, #255
+ 2956 0604 13304BE5 		strb	r3, [fp, #-19]
+ 253:../proyecto.c ****             		iis_textToSpeech("sumando minutos");
+ 2957              		.loc 1 253 0
+ 2958 0608 40019FE5 		ldr	r0, .L61+36
+ 2959 060c FEFFFFEB 		bl	iis_textToSpeech
+ 2960 0610 050000EA 		b	.L51
+ 2961              	.L53:
+ 254:../proyecto.c ****             	}else{
+ 255:../proyecto.c ****             		rtc_time.sec++;
+ 2962              		.loc 1 255 0
+ 2963 0614 14305BE5 		ldrb	r3, [fp, #-20]	@ zero_extendqisi2
+ 2964 0618 013083E2 		add	r3, r3, #1
+ 2965 061c FF3003E2 		and	r3, r3, #255
+ 2966 0620 14304BE5 		strb	r3, [fp, #-20]
+ 256:../proyecto.c ****             		iis_textToSpeech("sumando segundos");
+ 2967              		.loc 1 256 0
+ 2968 0624 28019FE5 		ldr	r0, .L61+40
+ 2969 0628 FEFFFFEB 		bl	iis_textToSpeech
+ 2970              	.L51:
+ 257:../proyecto.c ****             	}
+ 258:../proyecto.c ****             }
+ 259:../proyecto.c ****             if(scancode==KEYPAD_KEY1){
+ 2971              		.loc 1 259 0
+ 2972 062c 14319FE5 		ldr	r3, .L61+28
+ 2973 0630 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 2974 0634 010053E3 		cmp	r3, #1
+ 2975 0638 1900001A 		bne	.L54
+ 260:../proyecto.c **** 
+ 261:../proyecto.c ****                  if(ajustes==0){
+ 2976              		.loc 1 261 0
+ 2977 063c 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 2978 0640 000053E3 		cmp	r3, #0
+ 2979 0644 0600001A 		bne	.L55
+ 262:../proyecto.c ****                  	rtc_time.hour--;
+ 2980              		.loc 1 262 0
+ 2981 0648 12305BE5 		ldrb	r3, [fp, #-18]	@ zero_extendqisi2
+ 2982 064c 013043E2 		sub	r3, r3, #1
+ 2983 0650 FF3003E2 		and	r3, r3, #255
+ 2984 0654 12304BE5 		strb	r3, [fp, #-18]
+ 263:../proyecto.c ****                  	iis_textToSpeech("restando horas");
+ 2985              		.loc 1 263 0
+ 2986 0658 F8009FE5 		ldr	r0, .L61+44
+ 2987 065c FEFFFFEB 		bl	iis_textToSpeech
+ 2988 0660 0F0000EA 		b	.L54
+ 2989              	.L55:
+ 264:../proyecto.c ****                  }
+ 265:../proyecto.c ****                  else if(ajustes==1){
+ 2990              		.loc 1 265 0
+ 2991 0664 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 2992 0668 010053E3 		cmp	r3, #1
+ 2993 066c 0600001A 		bne	.L56
+ 266:../proyecto.c ****                     rtc_time.min--;
+ 2994              		.loc 1 266 0
+ 2995 0670 13305BE5 		ldrb	r3, [fp, #-19]	@ zero_extendqisi2
+ 2996 0674 013043E2 		sub	r3, r3, #1
+ 2997 0678 FF3003E2 		and	r3, r3, #255
+ 2998 067c 13304BE5 		strb	r3, [fp, #-19]
+ 267:../proyecto.c ****                     iis_textToSpeech("restando minutos");
+ 2999              		.loc 1 267 0
+ 3000 0680 D4009FE5 		ldr	r0, .L61+48
+ 3001 0684 FEFFFFEB 		bl	iis_textToSpeech
+ 3002 0688 050000EA 		b	.L54
+ 3003              	.L56:
+ 268:../proyecto.c ****                  }else{
+ 269:../proyecto.c ****                 	rtc_time.sec--;
+ 3004              		.loc 1 269 0
+ 3005 068c 14305BE5 		ldrb	r3, [fp, #-20]	@ zero_extendqisi2
+ 3006 0690 013043E2 		sub	r3, r3, #1
+ 3007 0694 FF3003E2 		and	r3, r3, #255
+ 3008 0698 14304BE5 		strb	r3, [fp, #-20]
+ 270:../proyecto.c ****                 	iis_textToSpeech("restando segundos");
+ 3009              		.loc 1 270 0
+ 3010 069c BC009FE5 		ldr	r0, .L61+52
+ 3011 06a0 FEFFFFEB 		bl	iis_textToSpeech
+ 3012              	.L54:
+ 271:../proyecto.c ****                  }
+ 272:../proyecto.c ****           	 }
+ 273:../proyecto.c ****             scancode = KEYPAD_FAILURE;
+ 3013              		.loc 1 273 0
+ 3014 06a4 9C309FE5 		ldr	r3, .L61+28
+ 3015 06a8 0020E0E3 		mvn	r2, #0
+ 3016 06ac 0020C3E5 		strb	r2, [r3, #0]
+ 274:../proyecto.c ****             if(PbRight==TRUE){
+ 3017              		.loc 1 274 0
+ 3018 06b0 78309FE5 		ldr	r3, .L61+4
+ 3019 06b4 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3020 06b8 010053E3 		cmp	r3, #1
+ 3021 06bc 0500001A 		bne	.L57
+ 275:../proyecto.c ****             	ajustes++;
+ 3022              		.loc 1 275 0
+ 3023 06c0 0D305BE5 		ldrb	r3, [fp, #-13]
+ 3024 06c4 013083E2 		add	r3, r3, #1
+ 3025 06c8 0D304BE5 		strb	r3, [fp, #-13]
+ 276:../proyecto.c ****             	PbRight=FALSE;
+ 3026              		.loc 1 276 0
+ 3027 06cc 5C309FE5 		ldr	r3, .L61+4
+ 3028 06d0 0020A0E3 		mov	r2, #0
+ 3029 06d4 0020C3E5 		strb	r2, [r3, #0]
+ 3030              	.L57:
+ 277:../proyecto.c ****             }
+ 278:../proyecto.c ****             PbScancode=0;
+ 3031              		.loc 1 278 0
+ 3032 06d8 84309FE5 		ldr	r3, .L61+56
+ 3033 06dc 0020A0E3 		mov	r2, #0
+ 3034 06e0 0020C3E5 		strb	r2, [r3, #0]
+ 3035              	.L41:
+ 204:../proyecto.c ****         	while(ajustes<3){
+ 3036              		.loc 1 204 0 discriminator 1
+ 3037 06e4 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 3038 06e8 020053E3 		cmp	r3, #2
+ 3039 06ec 4EFFFF9A 		bls	.L58
+ 279:../proyecto.c ****         	}
+ 280:../proyecto.c ****         	lcd_clear();
+ 3040              		.loc 1 280 0
+ 3041 06f0 FEFFFFEB 		bl	lcd_clear
+ 281:../proyecto.c ****             rtc_puttime(&rtc_time);
+ 3042              		.loc 1 281 0
+ 3043 06f4 14304BE2 		sub	r3, fp, #20
+ 3044 06f8 0300A0E1 		mov	r0, r3
+ 3045 06fc FEFFFFEB 		bl	rtc_puttime
+ 282:../proyecto.c ****             PbRight = FALSE;
+ 3046              		.loc 1 282 0
+ 3047 0700 28309FE5 		ldr	r3, .L61+4
+ 3048 0704 0020A0E3 		mov	r2, #0
+ 3049 0708 0020C3E5 		strb	r2, [r3, #0]
+ 283:../proyecto.c ****             flaglcd=TRUE;
+ 3050              		.loc 1 283 0
+ 3051 070c 20309FE5 		ldr	r3, .L61+8
+ 3052 0710 0120A0E3 		mov	r2, #1
+ 3053 0714 0020C3E5 		strb	r2, [r3, #0]
+ 284:../proyecto.c ****         	}
+ 285:../proyecto.c ****             break;
+ 3054              		.loc 1 285 0
+ 3055 0718 000000EA 		b	.L36
+ 3056              	.L60:
+ 3057 071c 0000A0E1 		mov	r0, r0	@ nop
+ 3058              	.L36:
+ 286:../proyecto.c ****     };
+ 287:../proyecto.c **** }
+ 3059              		.loc 1 287 0
+ 3060 0720 0CD04BE2 		sub	sp, fp, #12
+ 3061 0724 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 3062 0728 1EFF2FE1 		bx	lr
+ 3063              	.L62:
+ 3064              		.align	2
+ 3065              	.L61:
+ 3066 072c 60000000 		.word	.LC8
+ 3067 0730 00000000 		.word	PbRight
+ 3068 0734 00000000 		.word	flaglcd
+ 3069 0738 14000000 		.word	.LC1
+ 3070 073c 74000000 		.word	.LC9
+ 3071 0740 84000000 		.word	.LC10
+ 3072 0744 98000000 		.word	.LC11
+ 3073 0748 00000000 		.word	scancode
+ 3074 074c AC000000 		.word	.LC12
+ 3075 0750 BC000000 		.word	.LC13
+ 3076 0754 CC000000 		.word	.LC14
+ 3077 0758 E0000000 		.word	.LC15
+ 3078 075c F0000000 		.word	.LC16
+ 3079 0760 04010000 		.word	.LC17
+ 3080 0764 00000000 		.word	PbScancode
+ 3081              		.cfi_endproc
+ 3082              	.LFE4:
+ 3084              		.section	.rodata
+ 3085 0116 0000     		.align	2
+ 3086              	.LC18:
+ 3087 0118 20546173 		.ascii	" Task 5: iniciada.\012\000"
+ 3087      6B20353A 
+ 3087      20696E69 
+ 3087      63696164 
+ 3087      612E0A00 
+ 3088              		.align	2
+ 3089              	.LC19:
+ 3090 012c 73756D61 		.ascii	"sumando horas de alarma\000"
+ 3090      6E646F20 
+ 3090      686F7261 
+ 3090      73206465 
+ 3090      20616C61 
+ 3091              		.align	2
+ 3092              	.LC20:
+ 3093 0144 73756D61 		.ascii	"sumando minutos de alarma\000"
+ 3093      6E646F20 
+ 3093      6D696E75 
+ 3093      746F7320 
+ 3093      64652061 
+ 3094 015e 0000     		.align	2
+ 3095              	.LC21:
+ 3096 0160 72657374 		.ascii	"restando horas de alarma\000"
+ 3096      616E646F 
+ 3096      20686F72 
+ 3096      61732064 
+ 3096      6520616C 
+ 3097 0179 000000   		.align	2
+ 3098              	.LC22:
+ 3099 017c 72657374 		.ascii	"restando minutos de alarma\000"
+ 3099      616E646F 
+ 3099      206D696E 
+ 3099      75746F73 
+ 3099      20646520 
+ 3100 0197 00       		.align	2
+ 3101              	.LC23:
+ 3102 0198 45737461 		.ascii	"Estado de alarma\000"
+ 3102      646F2064 
+ 3102      6520616C 
+ 3102      61726D61 
+ 3102      00
+ 3103 01a9 000000   		.align	2
+ 3104              	.LC24:
+ 3105 01ac 416C6172 		.ascii	"Alarma activada\000"
+ 3105      6D612061 
+ 3105      63746976 
+ 3105      61646100 
+ 3106              		.align	2
+ 3107              	.LC25:
+ 3108 01bc 416C6172 		.ascii	"Alarma desactivada\000"
+ 3108      6D612064 
+ 3108      65736163 
+ 3108      74697661 
+ 3108      646100
+ 3109 01cf 00       		.align	2
+ 3110              	.LC26:
+ 3111 01d0 50756C73 		.ascii	"Pulse la tecla 0 para activar\000"
+ 3111      65206C61 
+ 3111      20746563 
+ 3111      6C612030 
+ 3111      20706172 
+ 3112 01ee 0000     		.align	2
+ 3113              	.LC27:
+ 3114 01f0 206F2074 		.ascii	" o tecla 1 para desactivar\000"
+ 3114      65636C61 
+ 3114      20312070 
+ 3114      61726120 
+ 3114      64657361 
+ 3115              		.text
+ 3116              		.align	2
+ 3117              		.global	Task5
+ 3119              	Task5:
+ 3120              	.LFB5:
+ 288:../proyecto.c **** 
+ 289:../proyecto.c **** void Task5( uint32 *state, uint32 *period )  /* Cada vez que reciba un scancode lo muestra por la U
+ 290:../proyecto.c **** {
+ 3121              		.loc 1 290 0
+ 3122              		.cfi_startproc
+ 3123              		@ Function supports interworking.
+ 3124              		@ args = 0, pretend = 0, frame = 16
+ 3125              		@ frame_needed = 1, uses_anonymous_args = 0
+ 3126 0768 0DC0A0E1 		mov	ip, sp
+ 3127              	.LCFI10:
+ 3128              		.cfi_def_cfa_register 12
+ 3129 076c 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 3130 0770 04B04CE2 		sub	fp, ip, #4
+ 3131              		.cfi_offset 14, -8
+ 3132              		.cfi_offset 13, -12
+ 3133              		.cfi_offset 11, -16
+ 3134              	.LCFI11:
+ 3135              		.cfi_def_cfa 11, 4
+ 3136 0774 10D04DE2 		sub	sp, sp, #16
+ 3137 0778 18000BE5 		str	r0, [fp, #-24]
+ 3138 077c 1C100BE5 		str	r1, [fp, #-28]
+ 291:../proyecto.c **** 
+ 292:../proyecto.c **** 
+ 293:../proyecto.c **** 	uint8 ajustes;
+ 294:../proyecto.c ****     switch( *state )
+ 3139              		.loc 1 294 0
+ 3140 0780 18301BE5 		ldr	r3, [fp, #-24]
+ 3141 0784 003093E5 		ldr	r3, [r3, #0]
+ 3142 0788 000053E3 		cmp	r3, #0
+ 3143 078c 0B00001A 		bne	.L86
+ 3144              	.L65:
+ 295:../proyecto.c ****     {
+ 296:../proyecto.c ****         case INIT:
+ 297:../proyecto.c ****             uart0_puts( " Task 5: iniciada.\n" );  /* Muestra un mensaje inicial en la UART0 (no es
+ 3145              		.loc 1 297 0
+ 3146 0790 BC039FE5 		ldr	r0, .L88
+ 3147 0794 FEFFFFEB 		bl	uart0_puts
+ 298:../proyecto.c ****             Alarmhour = 0;
+ 3148              		.loc 1 298 0
+ 3149 0798 B8339FE5 		ldr	r3, .L88+4
+ 3150 079c 0020A0E3 		mov	r2, #0
+ 3151 07a0 0020C3E5 		strb	r2, [r3, #0]
+ 299:../proyecto.c ****             Alarmmin =  0;
+ 3152              		.loc 1 299 0
+ 3153 07a4 B0339FE5 		ldr	r3, .L88+8
+ 3154 07a8 0020A0E3 		mov	r2, #0
+ 3155 07ac 0020C3E5 		strb	r2, [r3, #0]
+ 300:../proyecto.c ****             *state = RUN;
+ 3156              		.loc 1 300 0
+ 3157 07b0 18301BE5 		ldr	r3, [fp, #-24]
+ 3158 07b4 0120A0E3 		mov	r2, #1
+ 3159 07b8 002083E5 		str	r2, [r3, #0]
+ 301:../proyecto.c ****             break;
+ 3160              		.loc 1 301 0
+ 3161 07bc E10000EA 		b	.L63
+ 3162              	.L86:
+ 302:../proyecto.c ****         default:
+ 303:../proyecto.c ****             if( flagTask5 == TRUE )
+ 3163              		.loc 1 303 0
+ 3164 07c0 98339FE5 		ldr	r3, .L88+12
+ 3165 07c4 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3166 07c8 010053E3 		cmp	r3, #1
+ 3167 07cc DC00001A 		bne	.L87
+ 304:../proyecto.c ****             {
+ 305:../proyecto.c **** 
+ 306:../proyecto.c ****             	ajustes=0;
+ 3168              		.loc 1 306 0
+ 3169 07d0 0030A0E3 		mov	r3, #0
+ 3170 07d4 0D304BE5 		strb	r3, [fp, #-13]
+ 307:../proyecto.c ****             	flaglcd=FALSE;
+ 3171              		.loc 1 307 0
+ 3172 07d8 84339FE5 		ldr	r3, .L88+16
+ 3173 07dc 0020A0E3 		mov	r2, #0
+ 3174 07e0 0020C3E5 		strb	r2, [r3, #0]
+ 308:../proyecto.c **** 
+ 309:../proyecto.c ****             	while(ajustes<2){
+ 3175              		.loc 1 309 0
+ 3176 07e4 8B0000EA 		b	.L68
+ 3177              	.L79:
+ 310:../proyecto.c ****             	 lcd_puts_x2(160,80,0xf,":");
+ 3178              		.loc 1 310 0
+ 3179 07e8 A000A0E3 		mov	r0, #160
+ 3180 07ec 5010A0E3 		mov	r1, #80
+ 3181 07f0 0F20A0E3 		mov	r2, #15
+ 3182 07f4 6C339FE5 		ldr	r3, .L88+20
+ 3183 07f8 FEFFFFEB 		bl	lcd_puts_x2
+ 311:../proyecto.c ****             	 if(Alarmhour<10){
+ 3184              		.loc 1 311 0
+ 3185 07fc 54339FE5 		ldr	r3, .L88+4
+ 3186 0800 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3187 0804 090053E3 		cmp	r3, #9
+ 3188 0808 0B00008A 		bhi	.L69
+ 312:../proyecto.c ****             	 lcd_putintx10(5,32,0xf,0);
+ 3189              		.loc 1 312 0
+ 3190 080c 0500A0E3 		mov	r0, #5
+ 3191 0810 2010A0E3 		mov	r1, #32
+ 3192 0814 0F20A0E3 		mov	r2, #15
+ 3193 0818 0030A0E3 		mov	r3, #0
+ 3194 081c FEFFFFEB 		bl	lcd_putintx10
+ 313:../proyecto.c ****             	 lcd_putintx10(80,32,0xf,Alarmhour);
+ 3195              		.loc 1 313 0
+ 3196 0820 30339FE5 		ldr	r3, .L88+4
+ 3197 0824 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3198 0828 5000A0E3 		mov	r0, #80
+ 3199 082c 2010A0E3 		mov	r1, #32
+ 3200 0830 0F20A0E3 		mov	r2, #15
+ 3201 0834 FEFFFFEB 		bl	lcd_putintx10
+ 3202 0838 050000EA 		b	.L70
+ 3203              	.L69:
+ 314:../proyecto.c ****             	 }
+ 315:../proyecto.c ****             	 else{
+ 316:../proyecto.c ****             	 lcd_putintx10(5,32,0xf,Alarmhour);
+ 3204              		.loc 1 316 0
+ 3205 083c 14339FE5 		ldr	r3, .L88+4
+ 3206 0840 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3207 0844 0500A0E3 		mov	r0, #5
+ 3208 0848 2010A0E3 		mov	r1, #32
+ 3209 084c 0F20A0E3 		mov	r2, #15
+ 3210 0850 FEFFFFEB 		bl	lcd_putintx10
+ 3211              	.L70:
+ 317:../proyecto.c ****             	  }
+ 318:../proyecto.c ****             	 if(ajustes<2){
+ 3212              		.loc 1 318 0
+ 3213 0854 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 3214 0858 010053E3 		cmp	r3, #1
+ 3215 085c 1500008A 		bhi	.L71
+ 319:../proyecto.c ****             	 if(Alarmmin<10){
+ 3216              		.loc 1 319 0
+ 3217 0860 F4329FE5 		ldr	r3, .L88+8
+ 3218 0864 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3219 0868 090053E3 		cmp	r3, #9
+ 3220 086c 0B00008A 		bhi	.L72
+ 320:../proyecto.c ****             	  lcd_putintx10(180,32,0xf,0 );
+ 3221              		.loc 1 320 0
+ 3222 0870 B400A0E3 		mov	r0, #180
+ 3223 0874 2010A0E3 		mov	r1, #32
+ 3224 0878 0F20A0E3 		mov	r2, #15
+ 3225 087c 0030A0E3 		mov	r3, #0
+ 3226 0880 FEFFFFEB 		bl	lcd_putintx10
+ 321:../proyecto.c ****             	  lcd_putintx10(260,32,0xf,Alarmmin );
+ 3227              		.loc 1 321 0
+ 3228 0884 D0329FE5 		ldr	r3, .L88+8
+ 3229 0888 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3230 088c 410FA0E3 		mov	r0, #260
+ 3231 0890 2010A0E3 		mov	r1, #32
+ 3232 0894 0F20A0E3 		mov	r2, #15
+ 3233 0898 FEFFFFEB 		bl	lcd_putintx10
+ 3234 089c 050000EA 		b	.L71
+ 3235              	.L72:
+ 322:../proyecto.c ****             	  }
+ 323:../proyecto.c ****             	  else{
+ 324:../proyecto.c ****             	   lcd_putintx10(180,32,0xf,Alarmmin );
+ 3236              		.loc 1 324 0
+ 3237 08a0 B4329FE5 		ldr	r3, .L88+8
+ 3238 08a4 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3239 08a8 B400A0E3 		mov	r0, #180
+ 3240 08ac 2010A0E3 		mov	r1, #32
+ 3241 08b0 0F20A0E3 		mov	r2, #15
+ 3242 08b4 FEFFFFEB 		bl	lcd_putintx10
+ 3243              	.L71:
+ 325:../proyecto.c ****             	   }
+ 326:../proyecto.c ****             	  }
+ 327:../proyecto.c ****             	 if(ajustes==0){
+ 3244              		.loc 1 327 0
+ 3245 08b8 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 3246 08bc 000053E3 		cmp	r3, #0
+ 3247 08c0 0700001A 		bne	.L73
+ 328:../proyecto.c ****             	   lcd_puts_x2(5,160,0xf,"Editando horas");
+ 3248              		.loc 1 328 0
+ 3249 08c4 0500A0E3 		mov	r0, #5
+ 3250 08c8 A010A0E3 		mov	r1, #160
+ 3251 08cc 0F20A0E3 		mov	r2, #15
+ 3252 08d0 94329FE5 		ldr	r3, .L88+24
+ 3253 08d4 FEFFFFEB 		bl	lcd_puts_x2
+ 329:../proyecto.c ****             	   iis_textToSpeech("Editando horas");
+ 3254              		.loc 1 329 0
+ 3255 08d8 8C029FE5 		ldr	r0, .L88+24
+ 3256 08dc FEFFFFEB 		bl	iis_textToSpeech
+ 3257 08e0 090000EA 		b	.L74
+ 3258              	.L73:
+ 330:../proyecto.c ****             	  }else if(ajustes==1){
+ 3259              		.loc 1 330 0
+ 3260 08e4 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 3261 08e8 010053E3 		cmp	r3, #1
+ 3262 08ec 0600001A 		bne	.L74
+ 331:../proyecto.c ****             	   iis_textToSpeech ("Editando minutos");
+ 3263              		.loc 1 331 0
+ 3264 08f0 78029FE5 		ldr	r0, .L88+28
+ 3265 08f4 FEFFFFEB 		bl	iis_textToSpeech
+ 332:../proyecto.c ****             	  lcd_puts_x2(5,160,0xf,"Editando minutos");
+ 3266              		.loc 1 332 0
+ 3267 08f8 0500A0E3 		mov	r0, #5
+ 3268 08fc A010A0E3 		mov	r1, #160
+ 3269 0900 0F20A0E3 		mov	r2, #15
+ 3270 0904 64329FE5 		ldr	r3, .L88+28
+ 3271 0908 FEFFFFEB 		bl	lcd_puts_x2
+ 3272              	.L74:
+ 333:../proyecto.c ****             	  }
+ 334:../proyecto.c ****             	  if(scancode==KEYPAD_KEY0){
+ 3273              		.loc 1 334 0
+ 3274 090c 60329FE5 		ldr	r3, .L88+32
+ 3275 0910 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3276 0914 000053E3 		cmp	r3, #0
+ 3277 0918 1600001A 		bne	.L75
+ 335:../proyecto.c ****             	      if(ajustes==0){
+ 3278              		.loc 1 335 0
+ 3279 091c 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 3280 0920 000053E3 		cmp	r3, #0
+ 3281 0924 0800001A 		bne	.L76
+ 336:../proyecto.c ****             	    	  Alarmhour++;
+ 3282              		.loc 1 336 0
+ 3283 0928 28329FE5 		ldr	r3, .L88+4
+ 3284 092c 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3285 0930 013083E2 		add	r3, r3, #1
+ 3286 0934 FF2003E2 		and	r2, r3, #255
+ 3287 0938 18329FE5 		ldr	r3, .L88+4
+ 3288 093c 0020C3E5 		strb	r2, [r3, #0]
+ 337:../proyecto.c ****             	    	  iis_textToSpeech("sumando horas de alarma");
+ 3289              		.loc 1 337 0
+ 3290 0940 30029FE5 		ldr	r0, .L88+36
+ 3291 0944 FEFFFFEB 		bl	iis_textToSpeech
+ 3292 0948 0A0000EA 		b	.L75
+ 3293              	.L76:
+ 338:../proyecto.c ****             	       }
+ 339:../proyecto.c ****             	       else if(ajustes==1){
+ 3294              		.loc 1 339 0
+ 3295 094c 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 3296 0950 010053E3 		cmp	r3, #1
+ 3297 0954 0700001A 		bne	.L75
+ 340:../proyecto.c ****             	    	   Alarmmin++;
+ 3298              		.loc 1 340 0
+ 3299 0958 FC319FE5 		ldr	r3, .L88+8
+ 3300 095c 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3301 0960 013083E2 		add	r3, r3, #1
+ 3302 0964 FF2003E2 		and	r2, r3, #255
+ 3303 0968 EC319FE5 		ldr	r3, .L88+8
+ 3304 096c 0020C3E5 		strb	r2, [r3, #0]
+ 341:../proyecto.c ****             	    	   iis_textToSpeech("sumando minutos de alarma");
+ 3305              		.loc 1 341 0
+ 3306 0970 04029FE5 		ldr	r0, .L88+40
+ 3307 0974 FEFFFFEB 		bl	iis_textToSpeech
+ 3308              	.L75:
+ 342:../proyecto.c ****             	     }
+ 343:../proyecto.c ****             	  }
+ 344:../proyecto.c ****             	  if(scancode==KEYPAD_KEY1){
+ 3309              		.loc 1 344 0
+ 3310 0978 F4319FE5 		ldr	r3, .L88+32
+ 3311 097c 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3312 0980 010053E3 		cmp	r3, #1
+ 3313 0984 1600001A 		bne	.L77
+ 345:../proyecto.c ****             	       if(ajustes==0){
+ 3314              		.loc 1 345 0
+ 3315 0988 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 3316 098c 000053E3 		cmp	r3, #0
+ 3317 0990 0800001A 		bne	.L78
+ 346:../proyecto.c ****             	    	   Alarmhour--;
+ 3318              		.loc 1 346 0
+ 3319 0994 BC319FE5 		ldr	r3, .L88+4
+ 3320 0998 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3321 099c 013043E2 		sub	r3, r3, #1
+ 3322 09a0 FF2003E2 		and	r2, r3, #255
+ 3323 09a4 AC319FE5 		ldr	r3, .L88+4
+ 3324 09a8 0020C3E5 		strb	r2, [r3, #0]
+ 347:../proyecto.c ****             	    	   iis_textToSpeech("restando horas de alarma");
+ 3325              		.loc 1 347 0
+ 3326 09ac CC019FE5 		ldr	r0, .L88+44
+ 3327 09b0 FEFFFFEB 		bl	iis_textToSpeech
+ 3328 09b4 0A0000EA 		b	.L77
+ 3329              	.L78:
+ 348:../proyecto.c ****             	        }
+ 349:../proyecto.c ****             	        else if(ajustes==1){
+ 3330              		.loc 1 349 0
+ 3331 09b8 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 3332 09bc 010053E3 		cmp	r3, #1
+ 3333 09c0 0700001A 		bne	.L77
+ 350:../proyecto.c ****             	        	Alarmmin--;
+ 3334              		.loc 1 350 0
+ 3335 09c4 90319FE5 		ldr	r3, .L88+8
+ 3336 09c8 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3337 09cc 013043E2 		sub	r3, r3, #1
+ 3338 09d0 FF2003E2 		and	r2, r3, #255
+ 3339 09d4 80319FE5 		ldr	r3, .L88+8
+ 3340 09d8 0020C3E5 		strb	r2, [r3, #0]
+ 351:../proyecto.c ****             	           iis_textToSpeech("restando minutos de alarma");
+ 3341              		.loc 1 351 0
+ 3342 09dc A0019FE5 		ldr	r0, .L88+48
+ 3343 09e0 FEFFFFEB 		bl	iis_textToSpeech
+ 3344              	.L77:
+ 352:../proyecto.c ****             	     }
+ 353:../proyecto.c ****             	  }
+ 354:../proyecto.c ****             	  scancode = KEYPAD_FAILURE;
+ 3345              		.loc 1 354 0
+ 3346 09e4 88319FE5 		ldr	r3, .L88+32
+ 3347 09e8 0020E0E3 		mvn	r2, #0
+ 3348 09ec 0020C3E5 		strb	r2, [r3, #0]
+ 355:../proyecto.c ****             	  if(PbRight==TRUE){
+ 3349              		.loc 1 355 0
+ 3350 09f0 90319FE5 		ldr	r3, .L88+52
+ 3351 09f4 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3352 09f8 010053E3 		cmp	r3, #1
+ 3353 09fc 0500001A 		bne	.L68
+ 356:../proyecto.c ****             	      ajustes++;
+ 3354              		.loc 1 356 0
+ 3355 0a00 0D305BE5 		ldrb	r3, [fp, #-13]
+ 3356 0a04 013083E2 		add	r3, r3, #1
+ 3357 0a08 0D304BE5 		strb	r3, [fp, #-13]
+ 357:../proyecto.c ****                   	 PbRight=FALSE;
+ 3358              		.loc 1 357 0
+ 3359 0a0c 74319FE5 		ldr	r3, .L88+52
+ 3360 0a10 0020A0E3 		mov	r2, #0
+ 3361 0a14 0020C3E5 		strb	r2, [r3, #0]
+ 3362              	.L68:
+ 309:../proyecto.c ****             	while(ajustes<2){
+ 3363              		.loc 1 309 0 discriminator 1
+ 3364 0a18 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 3365 0a1c 010053E3 		cmp	r3, #1
+ 3366 0a20 70FFFF9A 		bls	.L79
+ 358:../proyecto.c ****             	      }
+ 359:../proyecto.c ****             	  }
+ 360:../proyecto.c ****             	    PbScancode=0;
+ 3367              		.loc 1 360 0
+ 3368 0a24 60319FE5 		ldr	r3, .L88+56
+ 3369 0a28 0020A0E3 		mov	r2, #0
+ 3370 0a2c 0020C3E5 		strb	r2, [r3, #0]
+ 361:../proyecto.c **** 
+ 362:../proyecto.c ****             	    lcd_clear();
+ 3371              		.loc 1 362 0
+ 3372 0a30 FEFFFFEB 		bl	lcd_clear
+ 363:../proyecto.c **** 
+ 364:../proyecto.c ****             	    PbRight = FALSE;
+ 3373              		.loc 1 364 0
+ 3374 0a34 4C319FE5 		ldr	r3, .L88+52
+ 3375 0a38 0020A0E3 		mov	r2, #0
+ 3376 0a3c 0020C3E5 		strb	r2, [r3, #0]
+ 365:../proyecto.c ****             	    iis_textToSpeech("Estado de alarma");
+ 3377              		.loc 1 365 0
+ 3378 0a40 48019FE5 		ldr	r0, .L88+60
+ 3379 0a44 FEFFFFEB 		bl	iis_textToSpeech
+ 366:../proyecto.c ****             	    if(Alarm==TRUE){
+ 3380              		.loc 1 366 0
+ 3381 0a48 44319FE5 		ldr	r3, .L88+64
+ 3382 0a4c 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3383 0a50 010053E3 		cmp	r3, #1
+ 3384 0a54 0700001A 		bne	.L80
+ 367:../proyecto.c ****             	    iis_textToSpeech("Alarma activada");
+ 3385              		.loc 1 367 0
+ 3386 0a58 38019FE5 		ldr	r0, .L88+68
+ 3387 0a5c FEFFFFEB 		bl	iis_textToSpeech
+ 368:../proyecto.c ****             	    lcd_puts_x2(5,160,0xf,"Alarma activada");
+ 3388              		.loc 1 368 0
+ 3389 0a60 0500A0E3 		mov	r0, #5
+ 3390 0a64 A010A0E3 		mov	r1, #160
+ 3391 0a68 0F20A0E3 		mov	r2, #15
+ 3392 0a6c 24319FE5 		ldr	r3, .L88+68
+ 3393 0a70 FEFFFFEB 		bl	lcd_puts_x2
+ 3394 0a74 060000EA 		b	.L81
+ 3395              	.L80:
+ 369:../proyecto.c ****             	    }
+ 370:../proyecto.c ****             	    else{
+ 371:../proyecto.c ****             	    iis_textToSpeech("Alarma desactivada");
+ 3396              		.loc 1 371 0
+ 3397 0a78 1C019FE5 		ldr	r0, .L88+72
+ 3398 0a7c FEFFFFEB 		bl	iis_textToSpeech
+ 372:../proyecto.c ****             	    lcd_puts_x2(5,160,0xf,"Alarma desactivada");
+ 3399              		.loc 1 372 0
+ 3400 0a80 0500A0E3 		mov	r0, #5
+ 3401 0a84 A010A0E3 		mov	r1, #160
+ 3402 0a88 0F20A0E3 		mov	r2, #15
+ 3403 0a8c 08319FE5 		ldr	r3, .L88+72
+ 3404 0a90 FEFFFFEB 		bl	lcd_puts_x2
+ 3405              	.L81:
+ 373:../proyecto.c ****             	    }
+ 374:../proyecto.c ****             	    scancode = KEYPAD_FAILURE;
+ 3406              		.loc 1 374 0
+ 3407 0a94 D8309FE5 		ldr	r3, .L88+32
+ 3408 0a98 0020E0E3 		mvn	r2, #0
+ 3409 0a9c 0020C3E5 		strb	r2, [r3, #0]
+ 375:../proyecto.c ****             	    iis_textToSpeech("Pulse la tecla 0 para activar");
+ 3410              		.loc 1 375 0
+ 3411 0aa0 F8009FE5 		ldr	r0, .L88+76
+ 3412 0aa4 FEFFFFEB 		bl	iis_textToSpeech
+ 376:../proyecto.c ****             	    iis_textToSpeech(" o tecla 1 para desactivar");
+ 3413              		.loc 1 376 0
+ 3414 0aa8 F4009FE5 		ldr	r0, .L88+80
+ 3415 0aac FEFFFFEB 		bl	iis_textToSpeech
+ 3416              	.L85:
+ 377:../proyecto.c **** 
+ 378:../proyecto.c ****             	    do{
+ 379:../proyecto.c ****                     if(scancode==KEYPAD_KEY0){
+ 3417              		.loc 1 379 0
+ 3418 0ab0 BC309FE5 		ldr	r3, .L88+32
+ 3419 0ab4 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3420 0ab8 000053E3 		cmp	r3, #0
+ 3421 0abc 0600001A 		bne	.L82
+ 380:../proyecto.c ****                     	Alarm=TRUE;
+ 3422              		.loc 1 380 0
+ 3423 0ac0 CC309FE5 		ldr	r3, .L88+64
+ 3424 0ac4 0120A0E3 		mov	r2, #1
+ 3425 0ac8 0020C3E5 		strb	r2, [r3, #0]
+ 381:../proyecto.c ****                     	scancode=KEYPAD_KEY0;
+ 3426              		.loc 1 381 0
+ 3427 0acc A0309FE5 		ldr	r3, .L88+32
+ 3428 0ad0 0020A0E3 		mov	r2, #0
+ 3429 0ad4 0020C3E5 		strb	r2, [r3, #0]
+ 3430 0ad8 090000EA 		b	.L83
+ 3431              	.L82:
+ 382:../proyecto.c ****                     }else if(scancode==KEYPAD_KEY1){
+ 3432              		.loc 1 382 0
+ 3433 0adc 90309FE5 		ldr	r3, .L88+32
+ 3434 0ae0 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3435 0ae4 010053E3 		cmp	r3, #1
+ 3436 0ae8 0500001A 		bne	.L83
+ 383:../proyecto.c ****                     	scancode=KEYPAD_KEY1;
+ 3437              		.loc 1 383 0
+ 3438 0aec 80309FE5 		ldr	r3, .L88+32
+ 3439 0af0 0120A0E3 		mov	r2, #1
+ 3440 0af4 0020C3E5 		strb	r2, [r3, #0]
+ 384:../proyecto.c ****                     	Alarm=FALSE;
+ 3441              		.loc 1 384 0
+ 3442 0af8 94309FE5 		ldr	r3, .L88+64
+ 3443 0afc 0020A0E3 		mov	r2, #0
+ 3444 0b00 0020C3E5 		strb	r2, [r3, #0]
+ 3445              	.L83:
+ 385:../proyecto.c ****                     }
+ 386:../proyecto.c ****             	    }while (scancode!=KEYPAD_KEY0&&scancode!=KEYPAD_KEY1);
+ 3446              		.loc 1 386 0
+ 3447 0b04 68309FE5 		ldr	r3, .L88+32
+ 3448 0b08 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3449 0b0c 000053E3 		cmp	r3, #0
+ 3450 0b10 0300000A 		beq	.L84
+ 3451              		.loc 1 386 0 is_stmt 0 discriminator 1
+ 3452 0b14 58309FE5 		ldr	r3, .L88+32
+ 3453 0b18 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3454 0b1c 010053E3 		cmp	r3, #1
+ 3455 0b20 E2FFFF1A 		bne	.L85
+ 3456              	.L84:
+ 387:../proyecto.c **** 
+ 388:../proyecto.c ****             	    lcd_clear();
+ 3457              		.loc 1 388 0 is_stmt 1
+ 3458 0b24 FEFFFFEB 		bl	lcd_clear
+ 389:../proyecto.c **** 
+ 390:../proyecto.c ****             	    flagTask5=FALSE;
+ 3459              		.loc 1 390 0
+ 3460 0b28 30309FE5 		ldr	r3, .L88+12
+ 3461 0b2c 0020A0E3 		mov	r2, #0
+ 3462 0b30 0020C3E5 		strb	r2, [r3, #0]
+ 391:../proyecto.c ****                     flaglcd=TRUE;
+ 3463              		.loc 1 391 0
+ 3464 0b34 28309FE5 		ldr	r3, .L88+16
+ 3465 0b38 0120A0E3 		mov	r2, #1
+ 3466 0b3c 0020C3E5 		strb	r2, [r3, #0]
+ 392:../proyecto.c ****             }
+ 393:../proyecto.c **** 
+ 394:../proyecto.c ****             break;
+ 3467              		.loc 1 394 0
+ 3468 0b40 000000EA 		b	.L63
+ 3469              	.L87:
+ 3470 0b44 0000A0E1 		mov	r0, r0	@ nop
+ 3471              	.L63:
+ 395:../proyecto.c ****     };
+ 396:../proyecto.c **** }
+ 3472              		.loc 1 396 0
+ 3473 0b48 0CD04BE2 		sub	sp, fp, #12
+ 3474 0b4c 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 3475 0b50 1EFF2FE1 		bx	lr
+ 3476              	.L89:
+ 3477              		.align	2
+ 3478              	.L88:
+ 3479 0b54 18010000 		.word	.LC18
+ 3480 0b58 00000000 		.word	Alarmhour
+ 3481 0b5c 00000000 		.word	Alarmmin
+ 3482 0b60 00000000 		.word	flagTask5
+ 3483 0b64 00000000 		.word	flaglcd
+ 3484 0b68 14000000 		.word	.LC1
+ 3485 0b6c 74000000 		.word	.LC9
+ 3486 0b70 84000000 		.word	.LC10
+ 3487 0b74 00000000 		.word	scancode
+ 3488 0b78 2C010000 		.word	.LC19
+ 3489 0b7c 44010000 		.word	.LC20
+ 3490 0b80 60010000 		.word	.LC21
+ 3491 0b84 7C010000 		.word	.LC22
+ 3492 0b88 00000000 		.word	PbRight
+ 3493 0b8c 00000000 		.word	PbScancode
+ 3494 0b90 98010000 		.word	.LC23
+ 3495 0b94 00000000 		.word	Alarm
+ 3496 0b98 AC010000 		.word	.LC24
+ 3497 0b9c BC010000 		.word	.LC25
+ 3498 0ba0 D0010000 		.word	.LC26
+ 3499 0ba4 F0010000 		.word	.LC27
+ 3500              		.cfi_endproc
+ 3501              	.LFE5:
+ 3503              		.section	.rodata
+ 3504 020b 00       		.align	2
+ 3505              	.LC28:
+ 3506 020c 20546173 		.ascii	" Task 6: iniciada.\012\000"
+ 3506      6B20363A 
+ 3506      20696E69 
+ 3506      63696164 
+ 3506      612E0A00 
+ 3507              		.align	2
+ 3508              	.LC29:
+ 3509 0220 416C6172 		.ascii	"Alarma\000"
+ 3509      6D6100
+ 3510 0227 00       		.text
+ 3511              		.align	2
+ 3512              		.global	Task6
+ 3514              	Task6:
+ 3515              	.LFB6:
+ 397:../proyecto.c **** 
+ 398:../proyecto.c **** void Task6( uint32 *state, uint32 *period )  /* Cada vez que reciba un scancode lo muestra por los 
+ 399:../proyecto.c **** {
+ 3516              		.loc 1 399 0
+ 3517              		.cfi_startproc
+ 3518              		@ Function supports interworking.
+ 3519              		@ args = 0, pretend = 0, frame = 16
+ 3520              		@ frame_needed = 1, uses_anonymous_args = 0
+ 3521 0ba8 0DC0A0E1 		mov	ip, sp
+ 3522              	.LCFI12:
+ 3523              		.cfi_def_cfa_register 12
+ 3524 0bac 00D82DE9 		stmfd	sp!, {fp, ip, lr, pc}
+ 3525 0bb0 04B04CE2 		sub	fp, ip, #4
+ 3526              		.cfi_offset 14, -8
+ 3527              		.cfi_offset 13, -12
+ 3528              		.cfi_offset 11, -16
+ 3529              	.LCFI13:
+ 3530              		.cfi_def_cfa 11, 4
+ 3531 0bb4 10D04DE2 		sub	sp, sp, #16
+ 3532 0bb8 18000BE5 		str	r0, [fp, #-24]
+ 3533 0bbc 1C100BE5 		str	r1, [fp, #-28]
+ 400:../proyecto.c **** 	rtc_time_t rtc_time;
+ 401:../proyecto.c ****     switch( *state )
+ 3534              		.loc 1 401 0
+ 3535 0bc0 18301BE5 		ldr	r3, [fp, #-24]
+ 3536 0bc4 003093E5 		ldr	r3, [r3, #0]
+ 3537 0bc8 000053E3 		cmp	r3, #0
+ 3538 0bcc 0500001A 		bne	.L95
+ 3539              	.L92:
+ 402:../proyecto.c ****     {
+ 403:../proyecto.c ****         case INIT:
+ 404:../proyecto.c ****             uart0_puts( " Task 6: iniciada.\n" );  /* Muestra un mensaje inicial en la UART0 (no es
+ 3540              		.loc 1 404 0
+ 3541 0bd0 C4009FE5 		ldr	r0, .L99
+ 3542 0bd4 FEFFFFEB 		bl	uart0_puts
+ 405:../proyecto.c ****             *state = RUN;
+ 3543              		.loc 1 405 0
+ 3544 0bd8 18301BE5 		ldr	r3, [fp, #-24]
+ 3545 0bdc 0120A0E3 		mov	r2, #1
+ 3546 0be0 002083E5 		str	r2, [r3, #0]
+ 406:../proyecto.c ****             break;
+ 3547              		.loc 1 406 0
+ 3548 0be4 290000EA 		b	.L90
+ 3549              	.L95:
+ 407:../proyecto.c ****         default:
+ 408:../proyecto.c ****             if(Alarm==TRUE){
+ 3550              		.loc 1 408 0
+ 3551 0be8 B0309FE5 		ldr	r3, .L99+4
+ 3552 0bec 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3553 0bf0 010053E3 		cmp	r3, #1
+ 3554 0bf4 2000001A 		bne	.L96
+ 409:../proyecto.c ****             	rtc_gettime( &rtc_time );
+ 3555              		.loc 1 409 0
+ 3556 0bf8 14304BE2 		sub	r3, fp, #20
+ 3557 0bfc 0300A0E1 		mov	r0, r3
+ 3558 0c00 FEFFFFEB 		bl	rtc_gettime
+ 410:../proyecto.c ****             	if(rtc_time.hour==Alarmhour&&rtc_time.min==Alarmmin){
+ 3559              		.loc 1 410 0
+ 3560 0c04 12205BE5 		ldrb	r2, [fp, #-18]	@ zero_extendqisi2
+ 3561 0c08 94309FE5 		ldr	r3, .L99+8
+ 3562 0c0c 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3563 0c10 030052E1 		cmp	r2, r3
+ 3564 0c14 1A00001A 		bne	.L97
+ 3565              		.loc 1 410 0 is_stmt 0 discriminator 1
+ 3566 0c18 13205BE5 		ldrb	r2, [fp, #-19]	@ zero_extendqisi2
+ 3567 0c1c 84309FE5 		ldr	r3, .L99+12
+ 3568 0c20 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3569 0c24 030052E1 		cmp	r2, r3
+ 3570 0c28 1700001A 		bne	.L98
+ 411:../proyecto.c ****             	iis_textToSpeech( "Alarma" );
+ 3571              		.loc 1 411 0 is_stmt 1
+ 3572 0c2c 78009FE5 		ldr	r0, .L99+16
+ 3573 0c30 FEFFFFEB 		bl	iis_textToSpeech
+ 412:../proyecto.c ****             	sw_delay_s(1);
+ 3574              		.loc 1 412 0
+ 3575 0c34 0100A0E3 		mov	r0, #1
+ 3576 0c38 FEFFFFEB 		bl	sw_delay_s
+ 413:../proyecto.c ****             	iis_textToSpeech( "Alarma" );
+ 3577              		.loc 1 413 0
+ 3578 0c3c 68009FE5 		ldr	r0, .L99+16
+ 3579 0c40 FEFFFFEB 		bl	iis_textToSpeech
+ 414:../proyecto.c ****             	sw_delay_s(2);
+ 3580              		.loc 1 414 0
+ 3581 0c44 0200A0E3 		mov	r0, #2
+ 3582 0c48 FEFFFFEB 		bl	sw_delay_s
+ 415:../proyecto.c ****             	iis_textToSpeech( "Alarma" );
+ 3583              		.loc 1 415 0
+ 3584 0c4c 58009FE5 		ldr	r0, .L99+16
+ 3585 0c50 FEFFFFEB 		bl	iis_textToSpeech
+ 416:../proyecto.c ****             	sw_delay_s(2);
+ 3586              		.loc 1 416 0
+ 3587 0c54 0200A0E3 		mov	r0, #2
+ 3588 0c58 FEFFFFEB 		bl	sw_delay_s
+ 417:../proyecto.c ****             	iis_textToSpeech( "Alarma" );
+ 3589              		.loc 1 417 0
+ 3590 0c5c 48009FE5 		ldr	r0, .L99+16
+ 3591 0c60 FEFFFFEB 		bl	iis_textToSpeech
+ 418:../proyecto.c ****             	sw_delay_s(3);
+ 3592              		.loc 1 418 0
+ 3593 0c64 0300A0E3 		mov	r0, #3
+ 3594 0c68 FEFFFFEB 		bl	sw_delay_s
+ 419:../proyecto.c ****             	Alarm=FALSE;
+ 3595              		.loc 1 419 0
+ 3596 0c6c 2C309FE5 		ldr	r3, .L99+4
+ 3597 0c70 0020A0E3 		mov	r2, #0
+ 3598 0c74 0020C3E5 		strb	r2, [r3, #0]
+ 420:../proyecto.c ****             	}
+ 421:../proyecto.c ****             }
+ 422:../proyecto.c ****             break;
+ 3599              		.loc 1 422 0
+ 3600 0c78 040000EA 		b	.L90
+ 3601              	.L96:
+ 3602 0c7c 0000A0E1 		mov	r0, r0	@ nop
+ 3603 0c80 020000EA 		b	.L90
+ 3604              	.L97:
+ 3605 0c84 0000A0E1 		mov	r0, r0	@ nop
+ 3606 0c88 000000EA 		b	.L90
+ 3607              	.L98:
+ 3608 0c8c 0000A0E1 		mov	r0, r0	@ nop
+ 3609              	.L90:
+ 423:../proyecto.c ****     };
+ 424:../proyecto.c **** }
+ 3610              		.loc 1 424 0
+ 3611 0c90 0CD04BE2 		sub	sp, fp, #12
+ 3612 0c94 00689DE8 		ldmfd	sp, {fp, sp, lr}
+ 3613 0c98 1EFF2FE1 		bx	lr
+ 3614              	.L100:
+ 3615              		.align	2
+ 3616              	.L99:
+ 3617 0c9c 0C020000 		.word	.LC28
+ 3618 0ca0 00000000 		.word	Alarm
+ 3619 0ca4 00000000 		.word	Alarmhour
+ 3620 0ca8 00000000 		.word	Alarmmin
+ 3621 0cac 20020000 		.word	.LC29
+ 3622              		.cfi_endproc
+ 3623              	.LFE6:
+ 3625              		.align	2
+ 3626              		.global	isr_keypad
+ 3628              	isr_keypad:
+ 3629              	.LFB7:
+ 425:../proyecto.c **** 
+ 426:../proyecto.c **** 
+ 427:../proyecto.c **** 
+ 428:../proyecto.c **** 
+ 429:../proyecto.c **** /*******************************************************************/
+ 430:../proyecto.c **** 
+ 431:../proyecto.c **** 
+ 432:../proyecto.c **** void isr_keypad ( void ){
+ 3630              		.loc 1 432 0
+ 3631              		.cfi_startproc
+ 3632              		@ Interrupt Service Routine.
+ 3633              		@ args = 0, pretend = 0, frame = 0
+ 3634              		@ frame_needed = 1, uses_anonymous_args = 0
+ 3635 0cb0 04C02DE5 		str	ip, [sp, #-4]!
+ 3636 0cb4 0DC0A0E1 		mov	ip, sp
+ 3637              	.LCFI14:
+ 3638              		.cfi_def_cfa_register 12
+ 3639 0cb8 0FD82DE9 		stmfd	sp!, {r0, r1, r2, r3, fp, ip, lr, pc}
+ 3640 0cbc 04B04CE2 		sub	fp, ip, #4
+ 3641              		.cfi_offset 14, -8
+ 3642              		.cfi_offset 13, -12
+ 3643              		.cfi_offset 11, -16
+ 3644              		.cfi_offset 3, -20
+ 3645              		.cfi_offset 2, -24
+ 3646              		.cfi_offset 1, -28
+ 3647              		.cfi_offset 0, -32
+ 3648              	.LCFI15:
+ 3649              		.cfi_def_cfa 11, 4
+ 433:../proyecto.c **** 	scancode=keypad_timeout_getchar(500);
+ 3650              		.loc 1 433 0
+ 3651 0cc0 7D0FA0E3 		mov	r0, #500
+ 3652 0cc4 FEFFFFEB 		bl	keypad_timeout_getchar
+ 3653 0cc8 0030A0E1 		mov	r3, r0
+ 3654 0ccc 0320A0E1 		mov	r2, r3
+ 3655 0cd0 1C309FE5 		ldr	r3, .L102
+ 3656 0cd4 0020C3E5 		strb	r2, [r3, #0]
+ 434:../proyecto.c **** 
+ 435:../proyecto.c **** 	I_ISPC = BIT_KEYPAD;
+ 3657              		.loc 1 435 0
+ 3658 0cd8 18309FE5 		ldr	r3, .L102+4
+ 3659 0cdc 0124A0E3 		mov	r2, #16777216
+ 3660 0ce0 002083E5 		str	r2, [r3, #0]
+ 436:../proyecto.c **** }
+ 3661              		.loc 1 436 0
+ 3662 0ce4 1CD04BE2 		sub	sp, fp, #28
+ 3663 0ce8 0F689DE8 		ldmfd	sp, {r0, r1, r2, r3, fp, sp, lr}
+ 3664 0cec 04C09DE4 		ldmfd	sp!, {ip}
+ 3665 0cf0 04F05EE2 		subs	pc, lr, #4
+ 3666              	.L103:
+ 3667              		.align	2
+ 3668              	.L102:
+ 3669 0cf4 00000000 		.word	scancode
+ 3670 0cf8 2400E001 		.word	31457316
+ 3671              		.cfi_endproc
+ 3672              	.LFE7:
+ 3674              		.align	2
+ 3675              		.global	isr_pb
+ 3677              	isr_pb:
+ 3678              	.LFB8:
+ 437:../proyecto.c **** 
+ 438:../proyecto.c **** void isr_pb( void )
+ 439:../proyecto.c **** {
+ 3679              		.loc 1 439 0
+ 3680              		.cfi_startproc
+ 3681              		@ Interrupt Service Routine.
+ 3682              		@ args = 0, pretend = 0, frame = 0
+ 3683              		@ frame_needed = 1, uses_anonymous_args = 0
+ 3684 0cfc 04C02DE5 		str	ip, [sp, #-4]!
+ 3685 0d00 0DC0A0E1 		mov	ip, sp
+ 3686              	.LCFI16:
+ 3687              		.cfi_def_cfa_register 12
+ 3688 0d04 0FD82DE9 		stmfd	sp!, {r0, r1, r2, r3, fp, ip, lr, pc}
+ 3689 0d08 04B04CE2 		sub	fp, ip, #4
+ 3690              		.cfi_offset 14, -8
+ 3691              		.cfi_offset 13, -12
+ 3692              		.cfi_offset 11, -16
+ 3693              		.cfi_offset 3, -20
+ 3694              		.cfi_offset 2, -24
+ 3695              		.cfi_offset 1, -28
+ 3696              		.cfi_offset 0, -32
+ 3697              	.LCFI17:
+ 3698              		.cfi_def_cfa 11, 4
+ 440:../proyecto.c **** 
+ 441:../proyecto.c **** 	  PbScancode=pb_timeout_getchar(500);
+ 3699              		.loc 1 441 0
+ 3700 0d0c 7D0FA0E3 		mov	r0, #500
+ 3701 0d10 FEFFFFEB 		bl	pb_timeout_getchar
+ 3702 0d14 0030A0E1 		mov	r3, r0
+ 3703 0d18 0320A0E1 		mov	r2, r3
+ 3704 0d1c 70309FE5 		ldr	r3, .L107
+ 3705 0d20 0020C3E5 		strb	r2, [r3, #0]
+ 442:../proyecto.c **** 	  if(PbScancode==PB_LEFT){
+ 3706              		.loc 1 442 0
+ 3707 0d24 68309FE5 		ldr	r3, .L107
+ 3708 0d28 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3709 0d2c 400053E3 		cmp	r3, #64
+ 3710 0d30 0300001A 		bne	.L105
+ 443:../proyecto.c **** 	       PbLeft=TRUE;
+ 3711              		.loc 1 443 0
+ 3712 0d34 5C309FE5 		ldr	r3, .L107+4
+ 3713 0d38 0120A0E3 		mov	r2, #1
+ 3714 0d3c 0020C3E5 		strb	r2, [r3, #0]
+ 3715 0d40 060000EA 		b	.L106
+ 3716              	.L105:
+ 444:../proyecto.c **** 	        	  }
+ 445:../proyecto.c **** 	  else if(PbScancode==PB_RIGHT){
+ 3717              		.loc 1 445 0
+ 3718 0d44 48309FE5 		ldr	r3, .L107
+ 3719 0d48 0030D3E5 		ldrb	r3, [r3, #0]	@ zero_extendqisi2
+ 3720 0d4c 800053E3 		cmp	r3, #128
+ 3721 0d50 0200001A 		bne	.L106
+ 446:../proyecto.c **** 	        		  PbRight=TRUE;
+ 3722              		.loc 1 446 0
+ 3723 0d54 40309FE5 		ldr	r3, .L107+8
+ 3724 0d58 0120A0E3 		mov	r2, #1
+ 3725 0d5c 0020C3E5 		strb	r2, [r3, #0]
+ 3726              	.L106:
+ 447:../proyecto.c **** 	     }
+ 448:../proyecto.c ****         /* Solo señaliza, el mensaje en la UART0 lo envía la hebra background para evitar proteger 
+ 449:../proyecto.c ****     EXTINTPND = BIT_RIGHTPB;
+ 3727              		.loc 1 449 0
+ 3728 0d60 38309FE5 		ldr	r3, .L107+12
+ 3729 0d64 0820A0E3 		mov	r2, #8
+ 3730 0d68 002083E5 		str	r2, [r3, #0]
+ 450:../proyecto.c ****     EXTINTPND = BIT_LEFTPB;
+ 3731              		.loc 1 450 0
+ 3732 0d6c 2C309FE5 		ldr	r3, .L107+12
+ 3733 0d70 0420A0E3 		mov	r2, #4
+ 3734 0d74 002083E5 		str	r2, [r3, #0]
+ 451:../proyecto.c ****     I_ISPC = BIT_PB;
+ 3735              		.loc 1 451 0
+ 3736 0d78 24309FE5 		ldr	r3, .L107+16
+ 3737 0d7c 0226A0E3 		mov	r2, #2097152
+ 3738 0d80 002083E5 		str	r2, [r3, #0]
+ 452:../proyecto.c **** }
+ 3739              		.loc 1 452 0
+ 3740 0d84 1CD04BE2 		sub	sp, fp, #28
+ 3741 0d88 0F689DE8 		ldmfd	sp, {r0, r1, r2, r3, fp, sp, lr}
+ 3742 0d8c 04C09DE4 		ldmfd	sp!, {ip}
+ 3743 0d90 04F05EE2 		subs	pc, lr, #4
+ 3744              	.L108:
+ 3745              		.align	2
+ 3746              	.L107:
+ 3747 0d94 00000000 		.word	PbScancode
+ 3748 0d98 00000000 		.word	PbLeft
+ 3749 0d9c 00000000 		.word	PbRight
+ 3750 0da0 5400D201 		.word	30539860
+ 3751 0da4 2400E001 		.word	31457316
+ 3752              		.cfi_endproc
+ 3753              	.LFE8:
+ 3755              	.Letext0:
+DEFINED SYMBOLS
+                            *ABS*:00000000 proyecto.c
+                            *COM*:00000001 Alarmmin
+                            *COM*:00000001 Alarmhour
+                            *COM*:00000001 PbScancode
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2222   .data:00000000 scancode
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2228   .bss:00000000 Alarm
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2229   .bss:00000000 $d
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2233   .bss:00000001 PbLeft
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2238   .bss:00000002 PbRight
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2244   .data:00000001 flaglcd
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2250   .bss:00000003 flagTask5
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2255   .bss:00000004 pb_pressed
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2258   .text:00000000 $a
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2261   .text:00000000 main
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2360   .text:000000d8 $d
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2383   .text:000000fc Task1
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2510   .text:00000224 Task2
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2596   .text:000002ac Task3
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2740   .text:000003ac Task4
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:3119   .text:00000768 Task5
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:3514   .text:00000ba8 Task6
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:3677   .text:00000cfc isr_pb
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:3628   .text:00000cb0 isr_keypad
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2373   .rodata:00000000 $d
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2380   .text:000000fc $a
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2496   .text:00000218 $d
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2507   .text:00000224 $a
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2570   .text:000002a0 $d
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2593   .text:000002ac $a
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2695   .text:00000390 $d
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:2737   .text:000003ac $a
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:3066   .text:0000072c $d
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:3116   .text:00000768 $a
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:3479   .text:00000b54 $d
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:3511   .text:00000ba8 $a
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:3617   .text:00000c9c $d
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:3625   .text:00000cb0 $a
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:3669   .text:00000cf4 $d
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:3674   .text:00000cfc $a
+C:\Users\VUser\AppData\Local\Temp\ccyhi0l4.s:3747   .text:00000d94 $d
+                     .debug_frame:00000010 $d
+
+UNDEFINED SYMBOLS
+timers_init
+leds_init
+segs_init
+rtc_init
+pbs_init
+keypad_init
+sys_init
+uart0_init
+lcd_init
+uda1341ts_init
+iis_init
+lcd_clear
+lcd_on
+uda1341ts_setvol
+scheduler_init
+create_task
+timer0_open_tick
+pbs_open
+keypad_open
+sleep
+dispacher
+scheduler
+uart0_puts
+rtc_gettime
+lcd_puts_x2
+lcd_putintx10
+iis_textToSpeech
+iis_textToSpeechInteger
+uart0_putint
+rtc_puttime
+sw_delay_s
+keypad_timeout_getchar
+pb_timeout_getchar

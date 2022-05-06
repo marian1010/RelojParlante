@@ -1,0 +1,18 @@
+17:10:23 **** Incremental Build of configuration Debug for project proyecto ****
+cs-make all 
+'Building file: ../sintesisVoz.c'
+'Invoking: ARM Sourcery Windows GCC C Compiler'
+arm-none-eabi-gcc -I../../BSP/include -O0 -Wall -Wa,-adhlns="sintesisVoz.o.lst" -c -fmessage-length=0 -mapcs-frame -MMD -MP -MF"sintesisVoz.d" -MT"sintesisVoz.d" -mcpu=arm7tdmi -g3 -gdwarf-2 -o "sintesisVoz.o" "../sintesisVoz.c"
+../sintesisVoz.c: In function 'iis_textToSpeech':
+../sintesisVoz.c:247:9: warning: passing argument 1 of 'iis_playwawFile' discards qualifiers from pointer target type
+../../BSP/include/iis.h:108:6: note: expected 'uint8 *' but argument is of type 'const uint8 *'
+'Finished building: ../sintesisVoz.c'
+' '
+'Building target: proyecto.elf'
+'Invoking: ARM Sourcery Windows GCC C Linker'
+arm-none-eabi-gcc -T"../proyecto.ld" -nostartfiles -L../../BSP/Debug -Wl,-Map,proyecto.map -mcpu=arm7tdmi -g3 -gdwarf-2 -o "proyecto.elf"  ./.metadata/.plugins/org.eclipse.cdt.make.core/specs.o  ./draw.o ./kernelcoop.o ./proyecto.o ./sintesisVoz.o   -lBSP
+'Finished building target: proyecto.elf'
+' '
+17:10:38 **** Incremental Build of configuration Debug for project proyecto ****
+cs-make all 
+cs-make: Nothing to be done for `all'.

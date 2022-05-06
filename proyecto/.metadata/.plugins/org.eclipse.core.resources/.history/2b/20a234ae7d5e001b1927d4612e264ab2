@@ -1,0 +1,12 @@
+/*
+ * draw.h
+ *
+ *  Created on: 24/01/2021
+ *      Author: VUser
+ */
+
+
+
+void lcd_puts_charX10( uint16 x, uint16 y, uint8 color, char *s );
+
+void lcd_putintx10( uint16 x, uint16 y, uint8 color, int32 i );

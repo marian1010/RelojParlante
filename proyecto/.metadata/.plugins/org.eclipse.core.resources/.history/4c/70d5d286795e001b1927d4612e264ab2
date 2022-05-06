@@ -1,0 +1,22 @@
+#include <lcd.h>
+#include "draw.h"
+
+uint16 x_center=160;
+uint16 y_center=120;
+
+
+
+void lcd_draw_cricle_pixel(uint16 j,uint16 radius){
+	uint16 x,y;
+	uint16 angle_circle = (j*0.01745331);       	 // angle expressed in radians - 1 degree = 0,01745331 radians
+	   x = (x_center + (radius*cos(angle_circle)));
+	   y= (y_center + (radius*sin(angle_circle)));
+	   lcd_putpixel(x,y, 0xf);
+}
+
+
+void ldc_draw_circle(uint16 radius){
+	 for (j=0; j<360; j++){
+		 lcd_draw_cricle_pixel ();
+	     }
+}

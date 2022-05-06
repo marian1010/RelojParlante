@@ -1,0 +1,9 @@
+/*
+ * draw.h
+ *
+ *  Created on: 24/01/2021
+ *      Author: VUser
+ */
+
+void lcd_draw_cricle_pixel(uint16 j,uint16 radius);
+

@@ -1,0 +1,37 @@
+#include <lcd.h>
+#include "draw.h"
+#include <math.h>
+#include <stdio.h>
+uint16 x_center=160;
+uint16 y_center=120;
+
+extern uint8 font[];
+
+void lcd_putchar_x10( uint16 x, uint16 y, uint8 color, char ch )
+{
+    uint8 line, row;
+    uint8 *bitmap;
+
+    bitmap = font + ch*16;
+    for( line=0; line<16*10; line++ )
+        for( row=0; row<8*10; row++ )
+            if( bitmap[line/10] & (0x80 >> row/10) ){
+            	 lcd_putpixel( x+row, y+line, color );
+            }
+            else{
+    			lcd_putpixel( x+row, y+line, WHITE);
+            }
+
+}
+
+
+void lcd_puts_charX10( uint16 x, uint16 y, uint8 color, char *s )
+{
+	uint32 i=0;
+    while(*(s+i)!='\0'){
+		lcd_putchar(x,y,color,*(s+i));
+		x+=8;
+		i++;
+	}
+
+}

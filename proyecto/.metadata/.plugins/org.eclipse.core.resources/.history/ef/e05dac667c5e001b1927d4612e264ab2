@@ -1,0 +1,39 @@
+#include <lcd.h>
+#include "draw.h"
+#include <math.h>
+#include <stdio.h>
+uint16 x_center=160;
+uint16 y_center=120;
+
+extern uint8 font[];
+
+void lcd_putchar_x10( uint16 x, uint16 y, uint8 color, char ch )
+{
+    uint8 line, row;
+    uint8 *bitmap;
+
+    bitmap = font + ch*16;
+    for( line=0; line<16; line++ )
+        for( row=0; row<8; row++ )
+            if( bitmap[line] & (0x80 >> row) ){
+    			lcd_putpixel( x+row*2, y+line*2, color );
+    			lcd_putpixel( x+row*2-1, y+line*2, color );
+    			lcd_putpixel( x+row*2, y+line*2-1, color);
+    			lcd_putpixel( x+row*2-1, y+line*2-1, color );
+            }
+            else{
+    			lcd_putpixel( x+row*2, y+line*2, WHITE );
+    			lcd_putpixel( x+row*2-1, y+line*2, WHITE );
+    			lcd_putpixel( x+row*2, y+line*2-1, WHITE);
+    			lcd_putpixel( x+row*2-1, y+line*2-1, WHITE );
+            }
+
+}
+
+
+void ldc_draw_circle(uint16 radius){
+	uint16 j;
+	 for (j=0; j<360; j++){
+		 lcd_draw_cricle_pixel (j,radius);
+	     }
+}

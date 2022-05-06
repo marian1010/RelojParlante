@@ -1,0 +1,6 @@
+17:10:38 **** Incremental Build of configuration Debug for project proyecto ****
+cs-make all 
+cs-make: Nothing to be done for `all'.
+
+17:10:39 Build Finished (took 166ms)
+
